@@ -1,2 +1,3 @@
-# Affine2020
-Master repository
+CnnDissector
+
+Debug and Visualize CNN networks
