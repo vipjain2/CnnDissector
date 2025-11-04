@@ -51,7 +51,7 @@ def main_worker( gpu, args, config, hyper ):
     val_loader = load_val( config.val_path, args, hyper, distributed )
     assert train_loader.dataset.classes == val_loader.dataset.classes
 
-    model = resnet18()
+    model = darknet()
     model.cuda( gpu )
 
     criterion = nn.CrossEntropyLoss().cuda( gpu )

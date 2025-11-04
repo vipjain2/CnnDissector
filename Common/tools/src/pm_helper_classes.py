@@ -50,12 +50,12 @@ class Window( object ):
         if image.dim() == 4 and image.size( 0 ) == 1:
             # extract image
             image = image.squeeze( 0 )
-        if image.dim() is 3 and image.size()[ -1 ] is not 3:
+        if image.dim() == 3 and image.size()[ -1 ] != 3:
             # image in ( C x H x W ) format
             image = image.permute( 1, 2, 0 )
             # remove the extra dimension if it is a grayscale image
             image = image.squeeze( 2 )
-        if image.dim() is 2 and "cmap" not in kwargs:
+        if image.dim() == 2 and "cmap" not in kwargs:
             # it is a grayscale image, set the color map correctly
             kwargs[ "cmap" ] = "gray"
         self.artists.append( self.ax.imshow( image, **kwargs ) )
@@ -91,7 +91,7 @@ class GraphWindow( object ):
             t = self.window_title
         else:
             t = "{} ( {} )".format( self.window_title, title )
-        self.fig.canvas.set_window_title( t )
+        self.fig.canvas.setWindowTitle( t )
 
     def reset_windows( self ):
         for window in self.windows:
@@ -105,7 +105,7 @@ class GraphWindow( object ):
             self.num_windows = 2
         else:
             self.num_windows = 1
-        if prev_mode is not self.num_windows:
+        if prev_mode != self.num_windows:
             self.cur_ax = None
             self.cur_window = None
 
@@ -128,7 +128,7 @@ class GraphWindow( object ):
             self.init_windows()
         else:
             if not persist:
-                if self.num_windows is 1:
+                if self.num_windows == 1:
                     self.window( self.cur_window ).clear()
                 else:
                     self.cur_window = self.cur_window ^ 1

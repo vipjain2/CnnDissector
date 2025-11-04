@@ -124,5 +124,36 @@ def plot_grad( model ):
     plt.grid( True )
     plt.show( block=False )
 
-reverse = ReverseConv()
-reverse.visualize( layer, filter )
+#reverse = ReverseConv()
+#reverse.visualize( layer, filter )
+
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def press(event):
+    print('press', event.key)
+    sys.stdout.flush()
+    if event.key == 'x':
+        visible = xl.get_visible()
+        xl.set_visible(not visible)
+        fig.canvas.draw()
+
+# Fixing random state for reproducibility
+np.random.seed(19680801)
+
+
+fig, ax = plt.subplots()
+
+fig.canvas.mpl_connect('key_press_event', press)
+
+ax.plot(np.random.rand(12), np.random.rand(12), 'go')
+xl = ax.set_xlabel('easy come, easy go')
+ax.set_title('Press a key')
+plt.show()
+
+s = 8
+t = torch.cat( tuple( torch.cat( tuple( torch.tensor( k ) for k in range( j * s, j * s + s ) ), dim=1 ) 
+                                                               for j in range( s ) ), dim=0 )
+print( t )

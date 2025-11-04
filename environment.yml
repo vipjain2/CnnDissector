@@ -1,0 +1,19 @@
+name: CnnDissector
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pytorch
+  - torchvision
+  - pytorch-cuda=12.4
+  - tensorboard=2.19.0
+  - numpy
+  - scipy
+  - matplotlib
+  - pip=25.0
+  - pip:
+    - setuptools==80.9.0
+    - cmake==4.0.3
