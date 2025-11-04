@@ -36,11 +36,13 @@ class Shell( ShellBase, cmd.Cmd ):
         #self.use_rawinput = False
         self.cur_frame = sys._getframe().f_back
 
+        self.expand_config_paths()
+        
         try:
             with open( ".pmdebugrc" ) as rc_file:
                 self.rc_lines.extend( rc_file )
         except OSError:
-            pass        
+            pass
         self.exec_rc()
 
         self.init_history( histfile=".pmdebug_history" )
@@ -165,6 +167,24 @@ class Shell( ShellBase, cmd.Cmd ):
         print( "{:,}".format( n ) )
 
     do_nparam = do_nparams
+    do_show_nparams = do_nparams
+
+
+    def do_show_config( self, args ):
+        """Display the current configuration settings
+        Usage: show config
+        """
+        self.message( "Configuration settings:" )
+        config_attrs = [ attr for attr in dir( self.config ) if not attr.startswith( '_' ) ]
+
+        if not config_attrs:
+            self.message( "  No configuration attributes set" )
+        else:
+            for attr in sorted( config_attrs ):
+                value = getattr( self.config, attr )
+                self.message( "  {:<20} = {}".format( attr, value ) )
+
+    do_show_conf = do_show_config
 
 
     def do_load_image( self, args ):
@@ -172,7 +192,7 @@ class Shell( ShellBase, cmd.Cmd ):
         Usage: load image [ path ]
         """
         global image
-        
+
         image_path = os.path.join( self.config.image_path, args )
         if not os.path.isfile( image_path ):
             self.error( "Image not found")
@@ -180,6 +200,7 @@ class Shell( ShellBase, cmd.Cmd ):
         self.message( "Loading image {}".format( image_path ) )
         image = Image.open( image_path )
         transform = transforms.Compose( [ transforms.Resize( ( self.image_size, self.image_size ) ),
+                                         
                                           transforms.ToTensor() ] )
         image = transform( image ).float().unsqueeze( 0 )
 
@@ -292,7 +313,7 @@ class Shell( ShellBase, cmd.Cmd ):
             self.message( "{:<10}{:4.1f}".format( idx.data, prob.data * 100 ) )
 
     do_infer = do_infer_image
-
+    do_show_infer = do_infer_image
 
     @supports_compare
     def do_show_first_layer_weights( self, args ):
@@ -642,7 +663,7 @@ class Shell( ShellBase, cmd.Cmd ):
 
 
     def do_set_dataset( self, path ):
-        self.dataset = Dataset( path )
+        self.dataset = Dataset( self.expand_path( path ) )
 
 
     def do_dataset_suffix( self, args ):
@@ -655,6 +676,24 @@ class Shell( ShellBase, cmd.Cmd ):
     ####################################################
     # Helper functions to debugger functionality go here
     ####################################################
+    def expand_path( self, path ):
+        """Expand environment variables and user home directory in path
+        """
+        if path is None:
+            return None
+        return os.path.expandvars( os.path.expanduser( path ) )
+
+    def expand_config_paths( self ):
+        """Expand environment variables in all path-related config attributes
+        """
+        path_attrs = [ 'image_path', 'checkpoint_path', 'dataset', 'train_path', 'val_path' ]
+        for attr in path_attrs:
+            if hasattr( self.config, attr ):
+                value = getattr( self.config, attr )
+                if value:
+                    setattr( self.config, attr, self.expand_path( value ) )
+                    print( f"config: {self.config.attr}" )
+
     def exec_rc( self ):
         if not self.rc_lines:
             return

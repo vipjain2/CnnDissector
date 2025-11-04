@@ -2,7 +2,7 @@
 
 This is an open source utility to visualize and debug layers of a CNN. Main entry point is the pm_shell utility.
 
-# PM Shell - PyTorch Model Debug Shell
+## PM Shell - PyTorch Model Debug Shell
 
 ## Overview
 
@@ -26,13 +26,51 @@ The shell looks for two configuration files in the current directory:
 - **`.pmdebugrc`** - RC file with startup commands (executed automatically on launch)
 - **`.pmdebug_history`** - Command history file (saved automatically on exit)
 
-### Config Object
-
-You can create a `Config` object with the following attributes:
+Following attributes can be specified in the .pmdebugrc file
 - `dataset` - Path to dataset directory
 - `image_path` - Path to image directory
 - `checkpoint_path` - Path to checkpoint files
 - `checkpoint_name` - Default checkpoint filename
+
+Python commands that are desired to be executed everytime at startup can be included directly in 
+the .pmdebugrc file, for example,
+
+import torchvision.models as models
+
+### Loading a model
+
+  ```
+  >> import torchvision.models as models
+  >> model=models.resnet18(weights=ResNet18_Weights.DEFAULT)
+  Resyncing model "model"
+  >> set context model
+  Context now is "model"
+  >> 
+  ```
+
+### Load a sample image and run inference
+
+  ```
+  >> load image dog.jpg
+  Loading image <'image_path' specified in .pmdebugrc>/dog.jpg
+  >> show infer
+  model:
+  463        0.8
+  600        0.7
+  731        0.7
+  412        0.6
+  899        0.6
+  ```
+
+### Display heatmap of the image
+See which area of the image is the model paying attention to.
+
+  ```
+  >> show heatmap
+  model guess: 463
+  >> 
+  ```
+
 
 ## Commands Reference
 
