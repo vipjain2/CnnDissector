@@ -46,7 +46,7 @@ class Shell( ShellBase, cmd.Cmd ):
         self.init_history( histfile=".pmdebug_history" )
         atexit.register( self.save_history, histfile=".pmdebug_history" )
 
-        if config.dataset:
+        if hasattr( config, 'dataset' ) and config.dataset:
             self.dataset = Dataset( config.dataset )
 
     ##############################################
