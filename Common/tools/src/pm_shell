@@ -317,7 +317,7 @@ class Shell( ShellBase, cmd.Cmd ):
                 self.error( "Can not display \"{}\". Not a model in context, or a tensor.".format( args ) )
                 return
 
-            if _weight.dim() is not 4 and _weight.size[ 1 ] not in ( 3, 1 ):
+            if _weight.dim() != 4 and _weight.size[ 1 ] not in ( 3, 1 ):
                 self.error( "Tensor \"{}\" is incorrect shape for display".format( args ) )
                 return
 
