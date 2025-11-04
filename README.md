@@ -1,6 +1,7 @@
-# CnnDissector
+# NetDissect
 
-This is an open source utility to visualize and debug layers of a CNN. Main entry point is the pm_shell utility.
+This is an open source utility for analyzing Neural Net architectures
+
 
 ## PM Shell - PyTorch Model Debug Shell
 
