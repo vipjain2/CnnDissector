@@ -69,8 +69,10 @@ See which area of the image is the model paying attention to.
   ```
   >> show heatmap
   model guess: 463
-  >> 
+  >>
   ```
+
+![Heatmap Example](docs/images/heatmap_demo.png)
 
 
 ## Commands Reference
