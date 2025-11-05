@@ -4,6 +4,7 @@ import os, sys, code, traceback
 import cmd
 import readline
 import atexit
+import re
 from collections import OrderedDict
 import functools
 from functools import reduce
@@ -35,14 +36,20 @@ class Shell( ShellBase, cmd.Cmd ):
         self.data_post_process_fn = None
         #self.use_rawinput = False
         self.cur_frame = sys._getframe().f_back
-
-        self.expand_config_paths()
         
-        try:
-            with open( ".pmdebugrc" ) as rc_file:
-                self.rc_lines.extend( rc_file )
-        except OSError:
-            pass
+        # Look for .pmdebugrc in current directory first, then in home directory
+        rc_file = None
+        if os.path.exists( ".pmdebugrc" ):
+            rc_file = ".pmdebugrc"
+        elif os.path.exists( os.path.expanduser( "~/.pmdebugrc" ) ):
+            rc_file = os.path.expanduser( "~/.pmdebugrc" )
+
+        if rc_file:
+            try:
+                with open( rc_file ) as f:
+                    self.rc_lines.extend( f )
+            except OSError:
+                pass
         self.exec_rc()
 
         self.init_history( histfile=".pmdebug_history" )
@@ -683,6 +690,7 @@ class Shell( ShellBase, cmd.Cmd ):
             return None
         return os.path.expandvars( os.path.expanduser( path ) )
 
+
     def expand_config_paths( self ):
         """Expand environment variables in all path-related config attributes
         """
@@ -692,7 +700,27 @@ class Shell( ShellBase, cmd.Cmd ):
                 value = getattr( self.config, attr )
                 if value:
                     setattr( self.config, attr, self.expand_path( value ) )
-                    print( f"config: {self.config.attr}" )
+
+
+    def pre_process_rc_line( self, line ):
+        """Process rc file line to handle quoted and unquoted paths
+        Automatically adds quotes around unquoted paths in config assignments
+        """
+        # Match pattern: config.something = value
+        match = re.match( r'^\s*(config\.\w+)\s*=\s*(.+)$', line )
+        if not match:
+            return line
+
+        config_var = match.group( 1 )
+        value = match.group( 2 ).strip()
+
+        # Check if value is already quoted
+        if (value.startswith( '"' ) and value.endswith( '"' )) or \
+           (value.startswith( "'" ) and value.endswith( "'" )):
+            return line
+        else:
+            return '{} = "{}"'.format( config_var, value )
+
 
     def exec_rc( self ):
         if not self.rc_lines:
@@ -709,8 +737,10 @@ class Shell( ShellBase, cmd.Cmd ):
             if not line or "#" in line[ 0 ]:
                 self.message()
                 continue
-            self.onecmd( self.precmd( line ) )
+            processed_line = self.pre_process_rc_line( line )
+            self.onecmd( self.precmd( processed_line ) )
         self.message()
+        self.expand_config_paths()
         self.quiet = self.stack.pop()
         self.message( "Done" )
 
