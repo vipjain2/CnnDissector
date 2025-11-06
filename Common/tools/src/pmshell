@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-import os, sys, code, traceback
+import os, sys, traceback
 import cmd
 import readline
 import atexit
@@ -8,18 +8,17 @@ import re
 import argparse
 from collections import OrderedDict
 import functools
-from functools import reduce
 import numpy as np
 import torch
 import torch.nn as nn
-import torchvision
 from torchvision import transforms, datasets
-from torchvision.models import *
 from torch.nn.functional import softmax
 from PIL import Image
 from pm_base import ShellBase
 from pm_helper_classes import Dataset
 from layer_visualizer import LayerVisualizer
+from pm_commands import Commands
+
 
 model = None
 image = None
@@ -27,7 +26,7 @@ image = None
 class Config( object ):
     pass 
 
-class Shell( ShellBase, cmd.Cmd ):
+class Shell( ShellBase, Commands, cmd.Cmd ):
     def __init__( self, config ):
         super().__init__()
         self.config = config
@@ -59,6 +58,7 @@ class Shell( ShellBase, cmd.Cmd ):
         if hasattr( config, 'dataset' ) and config.dataset:
             self.do_set_dataset( config.dataset )
             self.load_first_image_from_dataset()
+
 
     ##############################################
     # Functions overridden from base class go here
@@ -142,71 +142,12 @@ class Shell( ShellBase, cmd.Cmd ):
         return wrapper
 
 
-    ####################################
-    # All do_* command functions go here
-    ####################################
-    def do_quit( self, args ):
-        """Exits the shell
-        """
-        self.message( "Exiting shell" )
-        self.close()
-        raise SystemExit
-
-
-    def do_summary( self, args ):
-        """Prints pytorch model summary
-        """
-        model_info, _ = self.get_info_from_context( args )
-        if model_info is None:
-            self.message( "Model not found. Please set the model in context first" )
-            return
-
-        model = model_info.model
-        try:
-            self.message( "Model: {}".format( model_info.name ) )
-            self.message( "-" * 60 )
-            for name, module in model.named_modules():
-                if name:  # Skip the root module
-                    self.message( "{:<40} {}".format( name, module.__class__.__name__ ) )
-        except:
-            self.error( sys.exc_info()[ 1 ] )
-
-    do_show_summary = do_summary
-
-
-    def do_nparams( self, args ):
-        """Print the total number of parameters in a model
-        """
-        model_info, _  = self.get_info_from_context( args )
-        if model_info is None:
-            self.message( "Model \"{}\" not found. Please set the model in context first".format( args ) )
-            return
-
-        model = model_info.model
-        n =  sum( reduce( lambda x, y: x * y, p.size() ) for p in model.parameters())
-        print( "{:,}".format( n ) )
-
-    do_nparam = do_nparams
-    do_show_nparams = do_nparams
-
-
-    def do_show_config( self, args ):
-        """Display the current configuration settings
-        Usage: show config
-        """
-        self.message( "Configuration settings:" )
-        config_attrs = [ attr for attr in dir( self.config ) if not attr.startswith( '_' ) ]
-
-        if not config_attrs:
-            self.message( "  No configuration attributes set" )
-        else:
-            for attr in sorted( config_attrs ):
-                value = getattr( self.config, attr )
-                self.message( "  {:<20} = {}".format( attr, value ) )
-
-    do_show_conf = do_show_config
-
-
+    ########################################################
+    # do_* command functions go here
+    # Commands that use global variables or use decorators
+    # should be defined below.
+    # Rest of the commands can go in Commands class
+    ########################################################
     def do_load_image( self, args ):
         """Load a single image from the path specified
         Usage: load image [ path ]
@@ -281,29 +222,6 @@ class Shell( ShellBase, cmd.Cmd ):
     do_laod_chkp = do_load_checkpoint
 
 
-    def do_show_image( self, args ):
-        """Display an image array:
-        Usage: show image [ image_var ]
-        
-        If an (optional) image_var is specified, it's considered as a global 
-        variable referencing an image array and tries to show this image.
-        If no args are specified, show the image referenced by the
-        global "image" variable.
-        """ 
-        if not args:
-            args = "image"
-        img = self.in_place_eval( args )
-        if img is None:
-            self.error( "Could not display image" )
-            return
-
-        if not self.fig.imshow( img ):
-            self.error( "Unsupported image type" )
-            return
-
-    do_show_img = do_show_image
-
-
     @supports_compare
     def do_infer_image( self, args ):
         """Run inference on image:
@@ -374,20 +292,6 @@ class Shell( ShellBase, cmd.Cmd ):
         self.show_weights_as_grid( _weight, title )
 
     do_show_flw = do_show_first_layer_weights
-
-
-    def do_visualizer( self, args ):
-        if self.cur_model is None:
-            self.error( "No current model set in context" )
-            return
-        image = self.load_from_global( "image" )
-        if image is None:
-            self.error( "Please load an input image first" )
-            return
-
-        visual = LayerVisualizer( self.cur_model )
-        visual.set_image( image )
-        visual.start()
 
 
     @supports_compare
@@ -567,27 +471,6 @@ class Shell( ShellBase, cmd.Cmd ):
     do_set_postp = do_set_post_process
 
 
-    def do_up( self, args ):
-        if not self.cur_model:
-            self.error( "Please load a model first" )
-            return
-        
-        if not self.cur_model.up():
-            self.message( "Already at top" )
-        id, layer = self.cur_model.get_cur_id_layer()
-        self.message( "Current layer is {}: {}".format( id, layer ) )
-
-
-    def do_down( self, args ):
-        if not self.cur_model:
-            self.error( "Please load a model first" )
-            return
-        if not self.cur_model.down():
-            self.message( "Already at bottom" )
-        id, layer = self.cur_model.get_cur_id_layer()
-        self.message( "Current layer is {}: {}".format( id, layer ) )
-
-
     def do_assign( self, args ):
         args = args.split()
 
@@ -660,44 +543,6 @@ class Shell( ShellBase, cmd.Cmd ):
             return
 
         self.resync_model( args )
-
-
-    def do_set_class( self, args ):
-        if self.dataset is None:
-            self.error( "No dataset is configured" )
-        idx = int( args ) if args else 0
-        if not self.dataset.set_class( idx ):
-            self.error( "Could not set class to {}".format( args ) )
-
-
-    def do_set_compare( self, args ):
-        if not args:
-            self.compare = None
-        elif args not in self.models and args not in ( "image", "flw" ):
-            self.error( "Model \"{}\" not in context".format( args ) )
-            return 
-        else:
-            self.compare = args
-
-    do_set_comp = do_set_compare
-
-
-    def do_set_dataset( self, path ):
-        expanded_path = self.expand_path( path )
-        if not os.path.exists( expanded_path ):
-            self.error( "Dataset path does not exist: {}".format( expanded_path ) )
-            return
-        self.dataset = Dataset( expanded_path )
-
-    do_set_dataset_path = do_set_dataset
-    do_set_data_path = do_set_dataset
-
-
-    def do_dataset_suffix( self, args ):
-        if self.dataset.suffix( args ):
-            self.message( "Current dataset is: {}".format( self.dataset.data_path ) )
-        else:
-            self.error( "Could not change suffix" )
         
 
     ####################################################
