@@ -1,0 +1,13 @@
+#load config
+config.image_path = $NET_DISSECT/Vision/classification/test/images/
+config.checkpoint_name = checkpoint.pth.tar
+config.checkpoint_path = $NET_DISSECT/Vision/classification/train/checkpoint
+config.dataset = $HOME/Datasets/ImageNet/train/
+config.train_path = $HOME/Datasets/ImageNet/train
+config.val_path = $HOME/Datasets/ImageNet/val
+
+#load model
+import torchvision.models as models
+model=models.resnet18(weights=ResNet18_Weights.DEFAULT)
+set ctx model
+

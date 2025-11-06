@@ -14,11 +14,11 @@ PM Shell is an interactive debugging and visualization shell for PyTorch convolu
 ### Starting the Shell
 
 ```bash
-cd <dir-where-pm_shell_script_is>
-pm_shell
+cd <dir-where-pmshell_script_is>
+pmshell
 ```
 
-The shell will start with the prompt `>>` and display "Welcome to the debug shell!"
+The shell will start with the prompt `>>` and display "Welcome to the shell!"
 
 ### Configuration
 
@@ -393,7 +393,7 @@ Key global variables available:
 
 ```
 Common/tools/src/
-├── pm_shell              # Main shell executable
+├── pmshell              # Main shell executable
 ├── pm_base.py           # Base shell functionality
 ├── pm_helper_classes.py # Helper classes (Window, Dataset, ModelMeta, etc.)
 └── layer_visualizer.py  # Interactive layer visualizer
