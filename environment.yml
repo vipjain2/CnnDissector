@@ -1,4 +1,4 @@
-name: CnnDissector
+name: NET_DISSECT
 channels:
   - pytorch
   - nvidia
@@ -11,8 +11,8 @@ dependencies:
   - pytorch-cuda=12.4
   - tensorboard=2.19.0
   - numpy
-  - scipy
   - matplotlib
+  - pillow
   - pip=25.0
   - pip:
     - setuptools==80.9.0
