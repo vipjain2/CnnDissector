@@ -155,11 +155,22 @@ class Shell( ShellBase, cmd.Cmd ):
     def do_summary( self, args ):
         """Prints pytorch model summary
         """
+        model_info, _ = self.get_info_from_context( args )
+        if model_info is None:
+            self.message( "Model not found. Please set the model in context first" )
+            return
+
+        model = model_info.model
         try:
-            for layer in model.layers:
-                self.message( "{}  {}".format( layer._get_name(), layer.size() ) )
+            self.message( "Model: {}".format( model_info.name ) )
+            self.message( "-" * 60 )
+            for name, module in model.named_modules():
+                if name:  # Skip the root module
+                    self.message( "{:<40} {}".format( name, module.__class__.__name__ ) )
         except:
             self.error( sys.exc_info()[ 1 ] )
+
+    do_show_summary = do_summary
 
 
     def do_nparams( self, args ):
