@@ -8,6 +8,6 @@ config.val_path = $HOME/Datasets/ImageNet/val
 
 #load model
 import torchvision.models as models
-model=models.resnet18(weights=ResNet18_Weights.DEFAULT)
+model=models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
 set ctx model
 
