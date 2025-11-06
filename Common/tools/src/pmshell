@@ -56,7 +56,7 @@ class Shell( ShellBase, cmd.Cmd ):
         atexit.register( self.save_history, histfile=".pmdebug_history" )
 
         if hasattr( config, 'dataset' ) and config.dataset:
-            self.dataset = Dataset( config.dataset )
+            self.do_set_dataset( config.dataset )
             self.load_first_image_from_dataset()
 
     ##############################################
@@ -682,7 +682,14 @@ class Shell( ShellBase, cmd.Cmd ):
 
 
     def do_set_dataset( self, path ):
-        self.dataset = Dataset( self.expand_path( path ) )
+        expanded_path = self.expand_path( path )
+        if not os.path.exists( expanded_path ):
+            self.error( "Dataset path does not exist: {}".format( expanded_path ) )
+            return
+        self.dataset = Dataset( expanded_path )
+
+    do_set_dataset_path = do_set_dataset
+    do_set_data_path = do_set_dataset
 
 
     def do_dataset_suffix( self, args ):
