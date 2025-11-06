@@ -91,7 +91,18 @@ class GraphWindow( object ):
             t = self.window_title
         else:
             t = "{} ( {} )".format( self.window_title, title )
-        self.fig.canvas.setWindowTitle( t )
+
+        # Compatible with both old and new matplotlib versions
+        try:
+            # Try old API first (matplotlib < 3.4)
+            self.fig.canvas.setWindowTitle( t )
+        except AttributeError:
+            # Use new API (matplotlib >= 3.4)
+            try:
+                self.fig.canvas.manager.set_window_title( t )
+            except AttributeError:
+                # If neither works, silently ignore
+                pass
 
     def reset_windows( self ):
         for window in self.windows:
