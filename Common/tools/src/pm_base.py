@@ -14,17 +14,17 @@ from pm_helper_classes import GraphWindow, ModelMeta
 class ShellBase( object ):
     def __init__( self ):
         super().__init__()
+        self.quiet = False
         self.stdout = sys.stdout
         self.image_size = 224
         self.device = "cpu"
         self.models = {}
         self.cur_model = None
         self.verbose_help = True
-        self.quiet = False
         self.stack = []
         self.cur_frame = sys._getframe().f_back
         self.fig = GraphWindow()
-        print( "Init base")
+
     def set_model( self, name, model ):
         # If model is already in context, we only need to switch the pointer
         # Otherwise we need to set up the model in the context first
