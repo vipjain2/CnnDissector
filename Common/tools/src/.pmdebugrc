@@ -1,5 +1,5 @@
 #load config
-config.image_path = $NET_DISSECT/Vision/classification/test/images/
+config.image_path = $NET_DISSECT/test/images/
 config.checkpoint_name = checkpoint.pth.tar
 config.checkpoint_path = $NET_DISSECT/Vision/classification/train/checkpoint
 config.dataset = $HOME/Datasets/ImageNet/train/
