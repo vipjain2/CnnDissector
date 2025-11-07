@@ -7,7 +7,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
 
 
-class LLMProviderBase(ABC):
+class LLMProviderBase( ABC ):
     """
     Abstract base class for LLM providers.
 
@@ -15,7 +15,7 @@ class LLMProviderBase(ABC):
     and implement the required methods.
     """
 
-    def __init__(self, config: Dict[str, Any]):
+    def __init__( self, config: Dict[str, Any] ):
         """
         Initialize the LLM provider with configuration.
 
@@ -27,9 +27,9 @@ class LLMProviderBase(ABC):
         self._is_configured = False
 
     @abstractmethod
-    def generate(self, prompt: str, system_prompt: Optional[str] = None,
+    def generate( self, prompt: str, system_prompt: Optional[str] = None,
                  max_tokens: Optional[int] = None,
-                 temperature: float = 0.7) -> str:
+                 temperature: float = 0.7 ) -> str:
         """
         Generate a response from the LLM.
 
@@ -48,7 +48,7 @@ class LLMProviderBase(ABC):
         pass
 
     @abstractmethod
-    def is_available(self) -> bool:
+    def is_available( self ) -> bool:
         """
         Check if the LLM provider is available and properly configured.
 
@@ -58,7 +58,7 @@ class LLMProviderBase(ABC):
         pass
 
     @abstractmethod
-    def get_provider_name(self) -> str:
+    def get_provider_name( self ) -> str:
         """
         Get the name of the LLM provider.
 
@@ -67,17 +67,17 @@ class LLMProviderBase(ABC):
         """
         pass
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure( self, config: Dict[str, Any] ) -> None:
         """
         Update configuration for the provider.
 
         Args:
             config: New configuration dictionary
         """
-        self.config.update(config)
+        self.config.update( config )
         self._is_configured = True
 
-    def get_model_info(self) -> Dict[str, Any]:
+    def get_model_info( self ) -> Dict[str, Any]:
         """
         Get information about the currently configured model.
 
@@ -86,6 +86,6 @@ class LLMProviderBase(ABC):
         """
         return {
             "provider": self.get_provider_name(),
-            "model": self.config.get("model", "unknown"),
+            "model": self.config.get( "model", "unknown" ),
             "configured": self._is_configured
         }

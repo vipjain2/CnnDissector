@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from llm_provider_base import LLMProviderBase
 
 
-class OllamaProvider(LLMProviderBase):
+class OllamaProvider( LLMProviderBase ):
     """
     Ollama provider implementation for running local LLM models.
 
@@ -25,12 +25,12 @@ class OllamaProvider(LLMProviderBase):
     Note: Models must be pulled first using: ollama pull <model-name>
     """
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__( self, config: Dict[str, Any] ):
+        super().__init__( config )
         self._client = None
         self._initialize_client()
 
-    def _initialize_client(self):
+    def _initialize_client( self ):
         """Initialize the Ollama client."""
         try:
             import ollama
@@ -40,13 +40,13 @@ class OllamaProvider(LLMProviderBase):
             self._client = ollama
             self._is_configured = True
         except ImportError:
-            print("Warning: ollama package not installed. Run: pip install ollama")
+            print( "Warning: ollama package not installed. Run: pip install ollama" )
         except Exception as e:
-            print(f"Warning: Failed to initialize Ollama client: {e}")
+            print( f"Warning: Failed to initialize Ollama client: {e}" )
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None,
+    def generate( self, prompt: str, system_prompt: Optional[str] = None,
                  max_tokens: Optional[int] = None,
-                 temperature: float = 0.7) -> str:
+                 temperature: float = 0.7 ) -> str:
         """
         Generate a response using Ollama.
 
@@ -63,15 +63,15 @@ class OllamaProvider(LLMProviderBase):
             Exception: If client is not initialized or API call fails
         """
         if not self._client:
-            raise Exception("Ollama client not initialized. Install ollama package.")
+            raise Exception( "Ollama client not initialized. Install ollama package." )
 
         messages = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+            messages.append( {"role": "system", "content": system_prompt} )
+        messages.append( {"role": "user", "content": prompt} )
 
-        model = self.config.get("model", "llama3")
-        base_url = self.config.get("base_url")
+        model = self.config.get( "model", "llama3" )
+        base_url = self.config.get( "base_url" )
 
         try:
             # Build options dict
@@ -89,13 +89,13 @@ class OllamaProvider(LLMProviderBase):
             if base_url:
                 kwargs["host"] = base_url
 
-            response = self._client.chat(**kwargs)
+            response = self._client.chat( **kwargs )
             return response["message"]["content"]
         except Exception as e:
-            raise Exception(f"Ollama API call failed: {e}. "
-                          f"Make sure Ollama is running and model '{model}' is pulled.")
+            raise Exception( f"Ollama API call failed: {e}. "
+                          f"Make sure Ollama is running and model '{model}' is pulled." )
 
-    def is_available(self) -> bool:
+    def is_available( self ) -> bool:
         """
         Check if Ollama provider is available.
 
@@ -107,34 +107,34 @@ class OllamaProvider(LLMProviderBase):
 
         # Try to check if Ollama server is running
         try:
-            model = self.config.get("model", "llama3")
-            base_url = self.config.get("base_url")
+            model = self.config.get( "model", "llama3" )
+            base_url = self.config.get( "base_url" )
 
             kwargs = {"model": model}
             if base_url:
                 kwargs["host"] = base_url
 
             # Try to list models to verify connection
-            self._client.list(**kwargs)
+            self._client.list( **kwargs )
             return True
         except:
             return False
 
-    def get_provider_name(self) -> str:
+    def get_provider_name( self ) -> str:
         """Get provider name."""
         return "Ollama"
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure( self, config: Dict[str, Any] ) -> None:
         """
         Update configuration.
 
         Args:
             config: New configuration dictionary
         """
-        super().configure(config)
+        super().configure( config )
         # No need to reinitialize for Ollama
 
-    def list_models(self):
+    def list_models( self ):
         """
         List available Ollama models.
 
@@ -145,15 +145,15 @@ class OllamaProvider(LLMProviderBase):
             Exception: If client is not initialized
         """
         if not self._client:
-            raise Exception("Ollama client not initialized.")
+            raise Exception( "Ollama client not initialized." )
 
         try:
-            base_url = self.config.get("base_url")
+            base_url = self.config.get( "base_url" )
             kwargs = {}
             if base_url:
                 kwargs["host"] = base_url
 
-            models = self._client.list(**kwargs)
+            models = self._client.list( **kwargs )
             return [model["name"] for model in models["models"]]
         except Exception as e:
-            raise Exception(f"Failed to list Ollama models: {e}")
+            raise Exception( f"Failed to list Ollama models: {e}" )

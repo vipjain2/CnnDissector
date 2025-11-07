@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 from llm_provider_base import LLMProviderBase
 
 
-class GroqProvider(LLMProviderBase):
+class GroqProvider( LLMProviderBase ):
     """
     Groq provider implementation.
 
@@ -21,30 +21,30 @@ class GroqProvider(LLMProviderBase):
         - gemma-7b-it
     """
 
-    def __init__(self, config: Dict[str, Any]):
-        super().__init__(config)
+    def __init__( self, config: Dict[str, Any] ):
+        super().__init__( config )
         self._client = None
         self._initialize_client()
 
-    def _initialize_client(self):
+    def _initialize_client( self ):
         """Initialize the Groq client if API key is available."""
         try:
             from groq import Groq
 
-            api_key = self.config.get("api_key")
+            api_key = self.config.get( "api_key" )
             if not api_key:
                 return
 
-            self._client = Groq(api_key=api_key)
+            self._client = Groq( api_key=api_key )
             self._is_configured = True
         except ImportError:
-            print("Warning: groq package not installed. Run: pip install groq")
+            print( "Warning: groq package not installed. Run: pip install groq" )
         except Exception as e:
-            print(f"Warning: Failed to initialize Groq client: {e}")
+            print( f"Warning: Failed to initialize Groq client: {e}" )
 
-    def generate(self, prompt: str, system_prompt: Optional[str] = None,
+    def generate( self, prompt: str, system_prompt: Optional[str] = None,
                  max_tokens: Optional[int] = None,
-                 temperature: float = 0.7) -> str:
+                 temperature: float = 0.7 ) -> str:
         """
         Generate a response using Groq.
 
@@ -61,14 +61,14 @@ class GroqProvider(LLMProviderBase):
             Exception: If client is not initialized or API call fails
         """
         if not self._client:
-            raise Exception("Groq client not initialized. Check API key configuration.")
+            raise Exception( "Groq client not initialized. Check API key configuration." )
 
         messages = []
         if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
+            messages.append( {"role": "system", "content": system_prompt} )
+        messages.append( {"role": "user", "content": prompt} )
 
-        model = self.config.get("model", "llama3-70b-8192")
+        model = self.config.get( "model", "llama3-70b-8192" )
 
         try:
             response = self._client.chat.completions.create(
@@ -79,9 +79,9 @@ class GroqProvider(LLMProviderBase):
             )
             return response.choices[0].message.content
         except Exception as e:
-            raise Exception(f"Groq API call failed: {e}")
+            raise Exception( f"Groq API call failed: {e}" )
 
-    def is_available(self) -> bool:
+    def is_available( self ) -> bool:
         """
         Check if Groq provider is available.
 
@@ -90,16 +90,16 @@ class GroqProvider(LLMProviderBase):
         """
         return self._client is not None and self._is_configured
 
-    def get_provider_name(self) -> str:
+    def get_provider_name( self ) -> str:
         """Get provider name."""
         return "Groq"
 
-    def configure(self, config: Dict[str, Any]) -> None:
+    def configure( self, config: Dict[str, Any] ) -> None:
         """
         Update configuration and reinitialize client.
 
         Args:
             config: New configuration dictionary
         """
-        super().configure(config)
+        super().configure( config )
         self._initialize_client()
