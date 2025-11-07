@@ -40,32 +40,11 @@ class LLMConfig:
         Args:
             config_file: Optional path to JSON configuration file
         """
-        self.config = self.DEFAULT_CONFIG.copy()
-        self._load_from_env()
-
         if config_file and os.path.exists( config_file ):
             self._load_from_file( config_file )
+        else:
+            self.config = self.DEFAULT_CONFIG.copy()
 
-    def _load_from_env( self ):
-        """Load configuration from environment variables."""
-        # Groq API key
-        groq_key = os.environ.get( "GROQ_API_KEY" )
-        if groq_key:
-            self.config["groq"]["api_key"] = groq_key
-
-        # Default provider
-        default_provider = os.environ.get( "LLM_PROVIDER" )
-        if default_provider:
-            self.config["default_provider"] = default_provider
-
-        # Ollama settings
-        ollama_url = os.environ.get( "OLLAMA_BASE_URL" )
-        if ollama_url:
-            self.config["ollama"]["base_url"] = ollama_url
-
-        ollama_model = os.environ.get( "OLLAMA_MODEL" )
-        if ollama_model:
-            self.config["ollama"]["model"] = ollama_model
 
     def _load_from_file( self, config_file: str ):
         """
@@ -125,9 +104,6 @@ class LLMConfig:
     def create_service( self ) -> LLMService:
         """
         Create and configure an LLMService instance with registered providers.
-
-        Returns:
-            Configured LLMService instance
         """
         service = LLMService()
 
