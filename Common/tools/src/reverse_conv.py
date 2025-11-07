@@ -19,7 +19,7 @@ net = darknet().cpu().eval()
 layer = 0
 filter = 402
 
-class SaveParams( object ):
+class SaveParams:
     def __init__( self, module ):
         self.hook = module.register_forward_hook( self.hook_fn )
 
@@ -30,7 +30,7 @@ class SaveParams( object ):
         self.hook.remove()
 
 
-class ReverseConv( object ):
+class ReverseConv:
     def __init__( self, size=224 ):
         global net
         self.size = size

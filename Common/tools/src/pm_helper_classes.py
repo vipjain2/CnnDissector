@@ -21,7 +21,7 @@ from PIL import Image
 # Disable the top menubar on plots
 matplotlib.rcParams[ "toolbar" ] = "None"
 
-class Window( object ):
+class Window:
     def __init__( self, ax ):
         self.ax = ax
         self.cursor = None
@@ -73,7 +73,7 @@ class Window( object ):
         self.ax.clear()
         self.artists = []
 
-class GraphWindow( object ):
+class GraphWindow:
     def __init__( self ):
         self.fig = plt.figure()
         self.window_title = "PM Debug"
@@ -177,7 +177,7 @@ class GraphWindow( object ):
         plt.close()
 
 
-class Dataset( object ):
+class Dataset:
     def __init__( self, path ):
         self.data = None
         self.data_path = Path( path )
@@ -242,7 +242,7 @@ class Dataset( object ):
     def del_transform( self, index ):
         self.my_transforms.pop( index )
 
-class ModelMeta( object ):
+class ModelMeta:
     def __init__( self, model, name ):
         self.model = model
         self.name = name
@@ -377,7 +377,7 @@ class ModelMeta( object ):
         return found_frame, found
 
 
-class LayerMeta( object ):
+class LayerMeta:
     def __init__( self, layer, id=[] ):
         self.layer = layer
         self.id = id

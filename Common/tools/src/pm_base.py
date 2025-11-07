@@ -11,7 +11,7 @@ from PIL import Image
 from pm_helper_classes import GraphWindow, ModelMeta
 
 
-class ShellBase( object ):
+class ShellBase:
     def __init__( self ):
         super().__init__()
         self.quiet = False

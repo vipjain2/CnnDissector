@@ -24,7 +24,7 @@ from llm_config import LLMConfig
 model = None
 image = None
 
-class Config( object ):
+class Config:
     pass 
 
 class Shell( ShellBase, Commands, cmd.Cmd ):
