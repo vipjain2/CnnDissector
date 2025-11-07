@@ -16,7 +16,34 @@ class Commands:
 
 
     def do_summary( self, args ):
-        """Prints pytorch model summary
+        """Prints pytorch model summary with optional LLM analysis
+        """
+        model_info, _ = self.get_info_from_context( args )
+        if model_info is None:
+            self.message( "Model not found. Please set the model in context first" )
+            return
+
+        model = model_info.model
+
+        # Add LLM analysis if available
+        if hasattr(self, 'llm_service') and self.llm_service and self.llm_service.is_available():
+            self.message( "\n" + "=" * 60 )
+            self.message( "LLM Analysis:" )
+            self.message( "=" * 60 )
+            try:
+                description = self.llm_service.describe_architecture(model, model_info.name)
+                self.message( description )
+                self.message( "=" * 60 )
+            except Exception as e:
+                self.error( f"LLM analysis failed: {e}" )
+        else:
+            self.message( "\nLLM service not available. Configure a provider first." )
+
+    do_show_summary = do_summary
+
+
+    def do_show_layers( self, args ):
+        """Prints pytorch layers list
         """
         model_info, _ = self.get_info_from_context( args )
         if model_info is None:
@@ -32,8 +59,6 @@ class Commands:
                     self.message( "{:<40} {}".format( name, module.__class__.__name__ ) )
         except:
             self.error( sys.exc_info()[ 1 ] )
-
-    do_show_summary = do_summary
 
 
     def do_nparams( self, args ):
@@ -163,3 +188,53 @@ class Commands:
             self.message( "Current dataset is: {}".format( self.dataset.data_path ) )
         else:
             self.error( "Could not change suffix" )
+
+
+    def do_llm_provider( self, args ):
+        """Manage LLM provider settings
+
+        Usage:
+            llm_provider                    - Show current provider
+            llm_provider list               - List available providers
+            llm_provider set <name>         - Set active provider (groq, ollama)
+            llm_provider config             - Show configuration
+        """
+        if not hasattr(self, 'llm_service') or not self.llm_service:
+            self.error( "LLM service not initialized" )
+            return
+
+        args = args.strip().lower()
+
+        if not args:
+            # Show current provider
+            if self.llm_service.is_available():
+                provider = self.llm_service.get_provider()
+                self.message( f"Current provider: {provider.get_provider_name()}" )
+                info = provider.get_model_info()
+                self.message( f"Model: {info.get('model', 'unknown')}" )
+            else:
+                self.message( "No LLM provider configured" )
+
+        elif args == "list":
+            # List available providers
+            self.message( "Available providers:" )
+            self.message( "  - groq     (requires GROQ_API_KEY)" )
+            self.message( "  - ollama   (requires Ollama server running)" )
+
+        elif args.startswith("set "):
+            # Set provider
+            provider_name = args[4:].strip()
+            try:
+                self.llm_service.set_provider(provider_name)
+                self.message( f"Switched to provider: {provider_name}" )
+            except ValueError as e:
+                self.error( str(e) )
+
+        elif args == "config":
+            # Show configuration
+            from llm_config import LLMConfig
+            llm_config = LLMConfig()
+            llm_config.print_config()
+
+        else:
+            self.error( "Usage: llm_provider [list|set <name>|config]" )

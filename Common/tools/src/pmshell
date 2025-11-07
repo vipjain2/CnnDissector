@@ -18,6 +18,7 @@ from pm_base import ShellBase
 from pm_helper_classes import Dataset
 from layer_visualizer import LayerVisualizer
 from pm_commands import Commands
+from llm_config import LLMConfig
 
 
 model = None
@@ -58,6 +59,14 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
         if hasattr( config, 'dataset' ) and config.dataset:
             self.do_set_dataset( config.dataset )
             self.load_first_image_from_dataset()
+
+        # Initialize LLM service
+        try:
+            llm_config = LLMConfig()
+            self.llm_service = llm_config.create_service()
+        except Exception as e:
+            self.llm_service = None
+            print( f"Warning: LLM service initialization failed: {e}" )
 
 
     ##############################################
