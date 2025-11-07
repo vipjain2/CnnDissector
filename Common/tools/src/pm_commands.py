@@ -91,6 +91,11 @@ class Commands:
                 value = getattr( self.config, attr )
                 self.message( "  {:<20} = {}".format( attr, value ) )
 
+        if self.llm_service.is_available():
+            provider = self.llm_service.get_provider()
+            info = provider.get_model_info()
+            self.message( f"LLM provider: {provider.get_provider_name()} Model: {info.get('model', 'unknown')}" )
+
     do_show_conf = do_show_config
 
 
@@ -188,53 +193,3 @@ class Commands:
             self.message( "Current dataset is: {}".format( self.dataset.data_path ) )
         else:
             self.error( "Could not change suffix" )
-
-
-    def do_llm_provider( self, args ):
-        """Manage LLM provider settings
-
-        Usage:
-            llm_provider                    - Show current provider
-            llm_provider list               - List available providers
-            llm_provider set <name>         - Set active provider (groq, ollama)
-            llm_provider config             - Show configuration
-        """
-        if not hasattr(self, 'llm_service') or not self.llm_service:
-            self.error( "LLM service not initialized" )
-            return
-
-        args = args.strip().lower()
-
-        if not args:
-            # Show current provider
-            if self.llm_service.is_available():
-                provider = self.llm_service.get_provider()
-                self.message( f"Current provider: {provider.get_provider_name()}" )
-                info = provider.get_model_info()
-                self.message( f"Model: {info.get('model', 'unknown')}" )
-            else:
-                self.message( "No LLM provider configured" )
-
-        elif args == "list":
-            # List available providers
-            self.message( "Available providers:" )
-            self.message( "  - groq     (requires GROQ_API_KEY)" )
-            self.message( "  - ollama   (requires Ollama server running)" )
-
-        elif args.startswith("set "):
-            # Set provider
-            provider_name = args[4:].strip()
-            try:
-                self.llm_service.set_provider(provider_name)
-                self.message( f"Switched to provider: {provider_name}" )
-            except ValueError as e:
-                self.error( str(e) )
-
-        elif args == "config":
-            # Show configuration
-            from llm_config import LLMConfig
-            llm_config = LLMConfig()
-            llm_config.print_config()
-
-        else:
-            self.error( "Usage: llm_provider [list|set <name>|config]" )
