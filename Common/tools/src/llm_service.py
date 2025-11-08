@@ -9,7 +9,7 @@ import torch.nn as nn
 from llm_provider_base import LLMProviderBase
 from llm_provider_groq import GroqProvider
 from llm_provider_ollama import OllamaProvider
-
+from llm_config import LLMServiceConfig
 
 class LLMService:
     """
@@ -28,15 +28,32 @@ Your role is to analyze neural network layers and provide:
 
 Be concise, technical, and actionable in your responses."""
 
-    def __init__( self, provider: Optional[LLMProviderBase] = None ):
+    def __init__( self ):
         """
         Initialize the LLM service.
 
         Args:
             provider: LLM provider instance (Groq, Ollama, etc.)
         """
-        self._provider = provider
         self._providers: Dict[str, LLMProviderBase] = {}
+        self.config = LLMServiceConfig()
+
+
+    def create_service( self ):
+        """
+        Create and configure an LLMService instance with registered providers.
+        """
+        provider_name = self.config.get_default_provider()
+
+        # Register default provider
+        llm_config = self.config.get_provider_config( provider_name )
+        try:
+            provider_obj = GroqProvider( llm_config )
+            self.register_provider( provider_name, provider_obj )
+            self.set_provider( provider_name )
+        except Exception as e:
+            print( f"WARNING: Failed to initialize LLM : {e}" )
+
 
     def register_provider( self, name: str, provider: LLMProviderBase ) -> None:
         """
@@ -47,6 +64,7 @@ Be concise, technical, and actionable in your responses."""
             provider: Provider instance
         """
         self._providers[name] = provider
+
 
     def set_provider( self, name: str ) -> None:
         """
@@ -63,13 +81,16 @@ Be concise, technical, and actionable in your responses."""
                            f"Available: {list( self._providers.keys() )}" )
         self._provider = self._providers[name]
 
+
     def get_provider( self ) -> Optional[LLMProviderBase]:
         """Get the currently active provider."""
         return self._provider
 
+
     def is_available( self ) -> bool:
         """Check if LLM service is available (has a configured provider)."""
         return self._provider is not None and self._provider.is_available()
+
 
     def _format_layer_info( self, layer: nn.Module, layer_name: str ) -> str:
         """
@@ -78,9 +99,6 @@ Be concise, technical, and actionable in your responses."""
         Args:
             layer: PyTorch layer module
             layer_name: Name/identifier of the layer
-
-        Returns:
-            Formatted string with layer information
         """
         info = [f"Layer: {layer_name}", f"Type: {type( layer ).__name__}", ""]
 
@@ -133,15 +151,13 @@ Be concise, technical, and actionable in your responses."""
 
         return "\n".join( info )
 
+
     def _format_activation_stats( self, activations: torch.Tensor ) -> str:
         """
         Format activation statistics for LLM prompt.
 
         Args:
             activations: Tensor containing layer activations
-
-        Returns:
-            Formatted string with activation statistics
         """
         if activations is None:
             return "Activations: Not available"
@@ -156,15 +172,13 @@ Be concise, technical, and actionable in your responses."""
 
         return "\n".join( info )
 
+
     def _format_weight_stats( self, layer: nn.Module ) -> str:
         """
         Format weight statistics for LLM prompt.
 
         Args:
             layer: PyTorch layer module
-
-        Returns:
-            Formatted string with weight statistics
         """
         info = ["Weight Statistics:"]
 
@@ -184,6 +198,7 @@ Be concise, technical, and actionable in your responses."""
 
         return "\n".join( info ) if len( info ) > 1 else "Weights: Not available"
 
+
     def describe_layer( self, layer: nn.Module, layer_name: str,
                       activations: Optional[torch.Tensor] = None,
                       architecture_context: Optional[str] = None,
@@ -197,12 +212,6 @@ Be concise, technical, and actionable in your responses."""
             activations: Optional tensor with layer activations
             architecture_context: Optional context about the overall network architecture
             include_suggestions: Whether to include optimization suggestions
-
-        Returns:
-            Generated description from the LLM
-
-        Raises:
-            Exception: If LLM service is not available or generation fails
         """
         if not self.is_available():
             raise Exception( "LLM service not available. Configure a provider first." )
@@ -241,6 +250,7 @@ Be concise, technical, and actionable in your responses."""
 
         return self._provider.generate( prompt, system_prompt=self.SYSTEM_PROMPT )
 
+
     def describe_architecture( self, model: nn.Module, model_name: str = "Model" ) -> str:
         """
         Generate a high-level description of the entire network architecture.
@@ -248,12 +258,6 @@ Be concise, technical, and actionable in your responses."""
         Args:
             model: PyTorch model
             model_name: Name of the model
-
-        Returns:
-            Generated architecture description
-
-        Raises:
-            Exception: If LLM service is not available
         """
         if not self.is_available():
             raise Exception( "LLM service not available. Configure a provider first." )
@@ -292,12 +296,6 @@ Be concise, technical, and actionable in your responses."""
             model: PyTorch model
             training_stats: Optional dictionary with training statistics
                           (loss, accuracy, convergence info, etc.)
-
-        Returns:
-            Generated optimization suggestions
-
-        Raises:
-            Exception: If LLM service is not available
         """
         if not self.is_available():
             raise Exception( "LLM service not available. Configure a provider first." )

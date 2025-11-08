@@ -5,7 +5,9 @@ from layer_visualizer import LayerVisualizer
 
 
 class Commands:
-    """Class containing command methods for the Shell that don't use global variables or decorators"""
+    """Class containing command methods for the Shell.
+     Methods that don't use global variables or decorators should go here
+     """
 
     def do_quit( self, args ):
         """Exits the shell

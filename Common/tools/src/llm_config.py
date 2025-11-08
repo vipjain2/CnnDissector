@@ -11,21 +11,17 @@ from llm_provider_groq import GroqProvider
 from llm_provider_ollama import OllamaProvider
 
 
-class LLMConfig:
+class LLMServiceConfig:
     """
     Configuration manager for LLM providers.
-
-    Supports loading configuration from:
-    1. Environment variables
-    2. Configuration file
-    3. Direct configuration
+    Supports loading configuration from a configuration file
     """
 
     DEFAULT_CONFIG = {
         "default_provider": "ollama",
         "groq": {
             "model": "llama3-70b-8192",
-            "api_key": None  # Set via env var GROQ_API_KEY or config file
+            "api_key": None
         },
         "ollama": {
             "model": "llama3",
@@ -101,37 +97,6 @@ class LLMConfig:
             self.config[provider_name] = {}
         self.config[provider_name].update( config )
 
-    def create_service( self ) -> LLMService:
-        """
-        Create and configure an LLMService instance with registered providers.
-        """
-        service = LLMService()
-
-        # Register Groq provider
-        groq_config = self.get_provider_config( "groq" )
-        if groq_config.get( "api_key" ):
-            try:
-                groq_provider = GroqProvider( groq_config )
-                service.register_provider( "groq", groq_provider )
-            except Exception as e:
-                print( f"Warning: Failed to initialize Groq provider: {e}" )
-
-        # Register Ollama provider
-        ollama_config = self.get_provider_config( "ollama" )
-        try:
-            ollama_provider = OllamaProvider( ollama_config )
-            service.register_provider( "ollama", ollama_provider )
-        except Exception as e:
-            print( f"Warning: Failed to initialize Ollama provider: {e}" )
-
-        # Set default provider
-        default_provider = self.get_default_provider()
-        try:
-            service.set_provider( default_provider )
-        except ValueError:
-            print( f"Warning: Default provider '{default_provider}' not available" )
-
-        return service
 
     def save_to_file( self, config_file: str ):
         """
