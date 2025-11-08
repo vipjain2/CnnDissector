@@ -91,12 +91,14 @@ class Commands:
         else:
             for attr in sorted( config_attrs ):
                 value = getattr( self.config, attr )
-                self.message( "  {:<20} = {}".format( attr, value ) )
+                self.message( f"  {attr:<20} = {value}" )
 
         if self.llm_service.is_available():
             provider = self.llm_service.get_provider()
             info = provider.get_model_info()
-            self.message( f"LLM provider: {provider.get_provider_name()} Model: {info.get('model', 'unknown')}" )
+            self.message( "LLM provider:" )
+            self.message( f"  {'Name':<10}: {provider.get_provider_name()}" )
+            self.message( f"  {'Model':<10}: {info.get( 'model', 'unknown' )}" )
 
     do_show_conf = do_show_config
 
