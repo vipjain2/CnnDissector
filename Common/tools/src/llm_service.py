@@ -44,9 +44,15 @@ Be concise, technical, and actionable in your responses."""
         # Register default provider
         llm_config = self.config.get_provider_config( provider_name )
         try:
-            provider_obj = GroqProvider( llm_config )
+            # Dynamically create provider class from provider name
+            # e.g., "groq" -> "GroqProvider"
+            class_name = provider_name[0].upper() + provider_name[1:] + "Provider"
+            provider_class = globals()[class_name]
+            provider_obj = provider_class( llm_config )
+
             self.register_provider( provider_name, provider_obj )
             self.set_provider( provider_name )
+            
         except Exception as e:
             print( f"WARNING: Failed to initialize LLM : {e}" )
 
