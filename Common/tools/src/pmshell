@@ -18,6 +18,7 @@ from pm_base import ShellBase
 from pm_helper_classes import Dataset
 from layer_visualizer import LayerVisualizer
 from pm_commands import Commands
+from llm_service import LLMService
 
 
 model = None
@@ -61,8 +62,8 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
 
         # Initialize LLM service
         try:
-            llm_config = LLMConfig()
-            self.llm_service = llm_config.create_service()
+            self.llm_service = LLMService()
+            self.llm_service.create_service()
         except Exception as e:
             self.llm_service = None
             print( f"WARNING: LLM service initialization failed with {e}" )
