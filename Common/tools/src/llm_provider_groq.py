@@ -26,6 +26,7 @@ class GroqProvider( LLMProviderBase ):
         self._client = None
         self._initialize_client()
 
+
     def _initialize_client( self ):
         """Initialize the Groq client if API key is available."""
         try:
@@ -41,6 +42,7 @@ class GroqProvider( LLMProviderBase ):
             print( "Warning: groq package not installed. Run: pip install groq" )
         except Exception as e:
             print( f"Warning: Failed to initialize Groq client: {e}" )
+
 
     def generate( self, prompt: str, system_prompt: Optional[str] = None,
                  max_tokens: Optional[int] = None,
@@ -81,6 +83,7 @@ class GroqProvider( LLMProviderBase ):
         except Exception as e:
             raise Exception( f"Groq API call failed: {e}" )
 
+
     def is_available( self ) -> bool:
         """
         Check if Groq provider is available.
@@ -90,9 +93,11 @@ class GroqProvider( LLMProviderBase ):
         """
         return self._client is not None and self._is_configured
 
+
     def get_provider_name( self ) -> str:
         """Get provider name."""
-        return "Groq"
+        return "groq"
+
 
     def configure( self, config: Dict[str, Any] ) -> None:
         """

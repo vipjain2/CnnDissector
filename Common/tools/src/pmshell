@@ -62,7 +62,8 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
 
         # Initialize LLM service
         try:
-            self.llm_service = LLMService()
+            service_config_file = "llm_service_config.yaml"
+            self.llm_service = LLMService( service_config_file )
             self.llm_service.create_service()
         except Exception as e:
             self.llm_service = None

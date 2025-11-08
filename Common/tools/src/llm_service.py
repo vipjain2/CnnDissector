@@ -28,16 +28,12 @@ Your role is to analyze neural network layers and provide:
 
 Be concise, technical, and actionable in your responses."""
 
-    def __init__( self ):
-        """
-        Initialize the LLM service.
-
-        Args:
-            provider: LLM provider instance (Groq, Ollama, etc.)
-        """
+    def __init__( self, config_file ):
         self._providers: Dict[str, LLMProviderBase] = {}
-        self.config = LLMServiceConfig()
-
+        try:
+            self.config = LLMServiceConfig( config_file )
+        except:
+            print( f"WARNING: Failed to initialize LLM : {e}" )
 
     def create_service( self ):
         """

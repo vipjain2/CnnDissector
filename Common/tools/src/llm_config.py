@@ -14,16 +14,13 @@ class LLMServiceConfig:
     Supports loading configuration from a YAML configuration file
     """
 
+    """
+    General config parameters can be saved here. 
+    Do not save llm specific config in the DEFAULT_CONFIG. These
+    should go into the config file.
+    """
     DEFAULT_CONFIG = {
-        "default_provider": "ollama",
-        "groq": {
-            "model": "llama3-70b-8192",
-            "api_key": None
-        },
-        "ollama": {
-            "model": "llama3",
-            "base_url": "http://localhost:11434"
-        }
+        "verbose": "1",
     }
 
     def __init__( self, config_file: Optional[str] = None ):
@@ -33,10 +30,8 @@ class LLMServiceConfig:
         Args:
             config_file: Optional path to YAML configuration file
         """
-        if config_file and os.path.exists( config_file ):
-            self._load_from_file( config_file )
-        else:
-            self.config = self.DEFAULT_CONFIG.copy()
+        self.config = self.DEFAULT_CONFIG.copy()
+        self._load_from_file( config_file )
 
 
     def _load_from_file( self, config_file: str ):
@@ -60,6 +55,7 @@ class LLMServiceConfig:
             print( f"Warning: Failed to load LLM config from {config_file}: {e}" )
             self.config = self.DEFAULT_CONFIG.copy()
 
+
     def _merge_config( self, base: Dict, update: Dict ):
         """Recursively merge configuration dictionaries."""
         for key, value in update.items():
@@ -67,6 +63,7 @@ class LLMServiceConfig:
                 self._merge_config( base[key], value )
             else:
                 base[key] = value
+
 
     def get_provider_config( self, provider_name: str ) -> Dict[str, Any]:
         """
@@ -80,9 +77,11 @@ class LLMServiceConfig:
         """
         return self.config.get( provider_name, {} )
 
+
     def get_default_provider( self ) -> str:
         """Get the default provider name."""
         return self.config.get( "default_provider", "ollama" )
+
 
     def set_provider_config( self, provider_name: str, config: Dict[str, Any] ):
         """
@@ -110,10 +109,12 @@ class LLMServiceConfig:
         except Exception as e:
             print( f"Error: Failed to save config to {config_file}: {e}" )
 
+
     def print_config( self ):
         """Print current configuration (with API keys redacted)."""
         safe_config = self._redact_secrets( self.config )
         print( yaml.safe_dump( safe_config, default_flow_style=False, sort_keys=False ) )
+
 
     def _redact_secrets( self, config: Dict ) -> Dict:
         """Create a copy of config with API keys redacted."""
