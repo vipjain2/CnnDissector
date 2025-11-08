@@ -12,13 +12,7 @@ class GroqProvider( LLMProviderBase ):
 
     Configuration required:
         - api_key: Groq API key
-        - model: Model name (default: "llama3-70b-8192")
-
-    Available models:
-        - llama3-70b-8192
-        - llama3-8b-8192
-        - mixtral-8x7b-32768
-        - gemma-7b-it
+        - model: Model name 
     """
 
     def __init__( self, config: Dict[str, Any] ):
@@ -71,12 +65,13 @@ class GroqProvider( LLMProviderBase ):
         messages.append( {"role": "user", "content": prompt} )
 
         model = self.config.get( "model", "llama3-70b-8192" )
+        max_tokens = max_tokens or self.config.get( "max_tokens", 8192 )
 
         try:
             response = self._client.chat.completions.create(
                 model=model,
                 messages=messages,
-                max_tokens=max_tokens or 8192,
+                max_tokens=max_tokens,
                 temperature=temperature
             )
             return response.choices[0].message.content
@@ -87,9 +82,6 @@ class GroqProvider( LLMProviderBase ):
     def is_available( self ) -> bool:
         """
         Check if Groq provider is available.
-
-        Returns:
-            True if client is initialized and configured
         """
         return self._client is not None and self._is_configured
 

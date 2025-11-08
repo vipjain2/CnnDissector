@@ -72,6 +72,7 @@ class OllamaProvider( LLMProviderBase ):
 
         model = self.config.get( "model", "llama3" )
         base_url = self.config.get( "base_url" )
+        max_tokens = max_tokens or self.config.get( "max_tokens" )
 
         try:
             # Build options dict
