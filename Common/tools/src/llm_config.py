@@ -5,7 +5,7 @@ Handles loading and managing LLM provider configurations.
 
 from typing import Dict, Any, Optional
 import os
-import json
+import yaml
 from llm_service import LLMService
 from llm_provider_groq import GroqProvider
 from llm_provider_ollama import OllamaProvider
@@ -14,7 +14,7 @@ from llm_provider_ollama import OllamaProvider
 class LLMServiceConfig:
     """
     Configuration manager for LLM providers.
-    Supports loading configuration from a configuration file
+    Supports loading configuration from a YAML configuration file
     """
 
     DEFAULT_CONFIG = {
@@ -34,7 +34,7 @@ class LLMServiceConfig:
         Initialize LLM configuration.
 
         Args:
-            config_file: Optional path to JSON configuration file
+            config_file: Optional path to YAML configuration file
         """
         if config_file and os.path.exists( config_file ):
             self._load_from_file( config_file )
@@ -44,22 +44,24 @@ class LLMServiceConfig:
 
     def _load_from_file( self, config_file: str ):
         """
-        Load configuration from JSON file.
+        Load configuration from YAML file.
 
         Args:
             config_file: Path to configuration file
         """
         try:
             with open( config_file, 'r' ) as f:
-                file_config = json.load( f )
+                file_config = yaml.safe_load( f )
 
-            # Merge with existing config
-            if "llm" in file_config:
-                self._merge_config( self.config, file_config["llm"] )
-            else:
+            # Merge loaded config with defaults
+            if file_config:
+                self.config = self.DEFAULT_CONFIG.copy()
                 self._merge_config( self.config, file_config )
+            else:
+                self.config = self.DEFAULT_CONFIG.copy()
         except Exception as e:
             print( f"Warning: Failed to load LLM config from {config_file}: {e}" )
+            self.config = self.DEFAULT_CONFIG.copy()
 
     def _merge_config( self, base: Dict, update: Dict ):
         """Recursively merge configuration dictionaries."""
@@ -100,21 +102,21 @@ class LLMServiceConfig:
 
     def save_to_file( self, config_file: str ):
         """
-        Save current configuration to a JSON file.
+        Save current configuration to a YAML file.
 
         Args:
             config_file: Path to save configuration
         """
         try:
             with open( config_file, 'w' ) as f:
-                json.dump( {"llm": self.config}, f, indent=2 )
+                yaml.safe_dump( self.config, f, default_flow_style=False, sort_keys=False )
         except Exception as e:
             print( f"Error: Failed to save config to {config_file}: {e}" )
 
     def print_config( self ):
         """Print current configuration (with API keys redacted)."""
         safe_config = self._redact_secrets( self.config )
-        print( json.dumps( safe_config, indent=2 ) )
+        print( yaml.safe_dump( safe_config, default_flow_style=False, sort_keys=False ) )
 
     def _redact_secrets( self, config: Dict ) -> Dict:
         """Create a copy of config with API keys redacted."""
@@ -129,19 +131,15 @@ class LLMServiceConfig:
         return safe
 
 
-# Example configuration file format:
+# Example configuration file format (llm_config.yaml):
 """
-{
-  "llm": {
-    "default_provider": "groq",
-    "groq": {
-      "model": "llama3-70b-8192",
-      "api_key": "your-groq-api-key-here"
-    },
-    "ollama": {
-      "model": "llama3",
-      "base_url": "http://localhost:11434"
-    }
-  }
-}
+default_provider: groq
+
+groq:
+  model: llama3-70b-8192
+  api_key: your-groq-api-key-here  # Get from https://console.groq.com
+
+ollama:
+  model: llama3
+  base_url: http://localhost:11434  # Local Ollama server
 """
