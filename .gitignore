@@ -6,3 +6,4 @@
 **/*.tar
 *.code-workspace
 .pmdebug_history
+llm_service_config.yaml

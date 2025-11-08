@@ -61,6 +61,7 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
             self.load_first_image_from_dataset()
 
         # Initialize LLM service
+        self.message( "Initializing LLM service...", end="" )
         try:
             service_config_file = "llm_service_config.yaml"
             self.llm_service = LLMService( service_config_file )
@@ -68,6 +69,7 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
         except Exception as e:
             self.llm_service = None
             print( f"WARNING: LLM service initialization failed with {e}" )
+        self.message( "Done" )
 
 
     ##############################################
