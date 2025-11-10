@@ -22,7 +22,6 @@ class Commands:
         """
         model_info, _ = self.get_info_from_context( args )
         if model_info is None:
-            self.message( "Model not found. Please set the model in context first" )
             return
 
         model = model_info.model
