@@ -48,13 +48,15 @@ class ModelInfoResponse( BaseModel ):
 
 # Global shell instance - maintains all state
 shell_instance = None
+model = None
+image = None
 
 
 # Lifespan context manager for startup/shutdown
 @asynccontextmanager
 async def lifespan( app: FastAPI ):
     """Manage application lifespan (startup and shutdown)."""
-    global shell_instance
+    global shell_instance, model, image
 
     # Startup
     print( "PyTorch Model Shell API server starting..." )
@@ -80,7 +82,6 @@ async def lifespan( app: FastAPI ):
     shell_instance = Shell( config, server_mode=True )
 
     print( "PyTorch Model Shell API server started" )
-    print( f"Shell instance initialized with config" )
 
     yield  # Server runs here
 

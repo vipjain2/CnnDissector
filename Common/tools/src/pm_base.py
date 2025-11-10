@@ -71,14 +71,21 @@ class ShellBase:
         if not arg and not default:
             return None
 
-        cur_frame = sys._getframe().f_back
-        if arg in cur_frame.f_globals:
-            return cur_frame.f_globals[ arg ]
+        # Use self.cur_frame.f_globals to access the same namespace where exec() creates variables
+        globals_dict = self.cur_frame.f_globals
+
+        # Check locals first, then globals (since exec uses both)
+        if arg in self.cur_frame.f_locals:
+            return self.cur_frame.f_locals[ arg ]
+        elif arg in globals_dict:
+            return globals_dict[ arg ]
         elif default is None:
             return None
         elif isinstance( default, str ):
-            if default in cur_frame.f_globals:
-                return cur_frame.f_globals[ default ]
+            if default in self.cur_frame.f_locals:
+                return self.cur_frame.f_locals[ default ]
+            elif default in globals_dict:
+                return globals_dict[ default ]
             else:
                 return None
         else:

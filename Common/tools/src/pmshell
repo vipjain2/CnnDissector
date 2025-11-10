@@ -47,7 +47,6 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
             self.load_first_image_from_dataset()
 
         # Initialize LLM service
-        self.message( "Initializing LLM service...", end="" )
         try:
             # Use path relative to this script's location
             script_dir = os.path.dirname( os.path.abspath( __file__ ) )
@@ -56,8 +55,7 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
             self.llm_service.create_service()
         except Exception as e:
             self.llm_service = None
-            print( f"WARNING: LLM service initialization failed with {e}" )
-        self.message( "Done" )
+            self.error( f"WARNING: LLM service initialization failed with {e}" )
 
 
     ##############################################
