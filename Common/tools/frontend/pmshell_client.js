@@ -165,6 +165,8 @@ class PMShellAPIFrontend {
 
     this.rl.on('line', async (line) => {
       const input = line.trim();
+      // Normalize input: replace spaces with underscores for command matching
+      const normalizedInput = input.replace(/\s+/g, '_');
 
       if (input === 'quit' || input === 'exit') {
         this.rl.close();
@@ -172,13 +174,19 @@ class PMShellAPIFrontend {
       }
 
       if (input === 'help' || input === '?') {
-        this.showHelp();
+        await this.showHelp();
         this.rl.prompt();
         return;
       }
 
-      if (input === 'kill_server') {
+      if (normalizedInput === 'kill_server') {
         await this.killServer();
+        this.rl.prompt();
+        return;
+      }
+
+      if (normalizedInput === 'restart_server') {
+        await this.restartServer();
         this.rl.prompt();
         return;
       }
@@ -304,28 +312,31 @@ class PMShellAPIFrontend {
     });
   }
 
-  showHelp() {
+  async showHelp() {
     console.log(chalk.cyan.bold('\nPMShell Client Commands:'));
     console.log(chalk.gray('─'.repeat(50)));
 
-    console.log(chalk.green('  help, ?') + '          ' + chalk.white('Show this help message'));
-    console.log(chalk.green('  kill_server') + '      ' + chalk.white('Terminate the backend API server'));
-    console.log(chalk.green('  quit, exit') + '       ' + chalk.white('Exit the client (server continues running)'));
+    console.log(chalk.green('  help, ?') + '               ' + chalk.white('Show this help message'));
+    console.log(chalk.green('  kill server') + '           ' + chalk.white('Terminate the backend API server'));
+    console.log(chalk.green('  restart server') + '        ' + chalk.white('Restart the backend API server'));
+    console.log(chalk.green('  quit, exit') + '            ' + chalk.white('Exit the client (server continues running)'));
 
-    console.log(chalk.cyan.bold('\nPMShell Commands (passed to backend):'));
-    console.log(chalk.gray('─'.repeat(50)));
+    // Get pmshell help from backend
+    try {
+      const response = await this.makeRequest('/command', {
+        method: 'POST',
+        body: JSON.stringify({ command: 'help' })
+      });
 
-    console.log(chalk.green('  summary') + '          ' + chalk.white('Display model summary'));
-    console.log(chalk.green('  nparams') + '          ' + chalk.white('Show number of parameters'));
-    console.log(chalk.green('  show config') + '      ' + chalk.white('Display current configuration'));
-    console.log(chalk.green('  show llm') + '         ' + chalk.white('Show LLM provider information'));
-    console.log(chalk.green('  set ctx <name>') + '   ' + chalk.white('Set context (model/layer/image)'));
-    console.log(chalk.green('  load <path>') + '      ' + chalk.white('Load model checkpoint'));
-    console.log(chalk.green('  layers') + '           ' + chalk.white('List all layers'));
-    console.log(chalk.green('  compare <layer>') + '  ' + chalk.white('Compare layer activations'));
-
-    console.log(chalk.gray('\nType any pmshell command to execute it on the backend.'));
-    console.log(chalk.gray('For more pmshell commands, see the backend documentation.\n'));
+      if (response.success && response.output) {
+        console.log(chalk.cyan.bold('\nPMShell Server Commands:'));
+        console.log(chalk.gray('─'.repeat(50)));
+        console.log(response.output);
+      }
+    } catch (err) {
+      console.log(chalk.yellow('\n⚠ Could not fetch pmshell help from backend'));
+      console.log(chalk.gray('Type pmshell commands directly to execute them on the backend.\n'));
+    }
   }
 
   async killServer() {
@@ -357,6 +368,19 @@ class PMShellAPIFrontend {
         console.log(chalk.red('✗ Failed to shutdown server: ' + err.message));
       }
     }
+  }
+
+  async restartServer() {
+    console.log(chalk.cyan('Restarting server...\n'));
+
+    // Kill the existing server (already handles verification)
+    await this.killServer();
+
+    // Start a new server
+    console.log(chalk.gray('\nStarting new server...'));
+    await this.startAPIServer();
+    await this.waitForServer();
+    console.log(chalk.green('✓ Server restarted successfully\n'));
   }
 
   async shutdown() {
