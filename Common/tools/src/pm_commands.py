@@ -3,6 +3,8 @@ from functools import reduce
 from pm_helper_classes import Dataset
 from layer_visualizer import LayerVisualizer
 import torch.nn as nn
+from PIL import Image
+from torchvision import transforms
 
 
 class Commands:
