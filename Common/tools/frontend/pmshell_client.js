@@ -5,15 +5,16 @@ const { createInterface } = require('readline');
 const chalk = require('chalk');
 const boxen = require('boxen');
 const http = require('http');
+const fs = require('fs');
 
 class PMShellAPIFrontend {
   constructor() {
     this.apiServer = null;
-    this.serverPid = null;
     this.rl = null;
     this.apiHost = '127.0.0.1';
     this.apiPort = 8000;
     this.apiBaseUrl = `http://${this.apiHost}:${this.apiPort}`;
+    this.isLogging = false;  // Flag to prevent recursive logging
   }
 
   async start() {
@@ -27,18 +28,68 @@ class PMShellAPIFrontend {
       }
     ));
 
-    console.log(chalk.gray('Starting API backend server...'));
+    // Check if server is already running
+    const serverRunning = await this.checkServerRunning();
 
-    // Start the API server
-    await this.startAPIServer();
+    if (serverRunning) {
+      console.log(chalk.green('✓ Using existing backend server\n'));
+    } else {
+      console.log(chalk.gray('Starting API backend server...'));
 
-    // Wait for server to be ready
-    await this.waitForServer();
+      // Start the API server
+      await this.startAPIServer();
 
-    console.log(chalk.green('✓ Backend server ready\n'));
+      // Wait for server to be ready
+      await this.waitForServer();
+
+      console.log(chalk.green('✓ Backend server ready\n'));
+    }
 
     // Setup readline interface
     this.setupReadline();
+  }
+
+  async checkServerRunning() {
+    try {
+      await this.makeRequest('/health');
+      return true;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async getServerPid() {
+    try {
+      const response = await this.makeRequest('/server/pid');
+      return response.pid;
+    } catch (err) {
+      return null;
+    }
+  }
+
+  async logServerOutput(data) {
+    // Prevent recursive logging
+    if (this.isLogging) {
+      return;
+    }
+
+    this.isLogging = true;
+
+    try {
+      const lines = data.split('\n');
+      const pid = await this.getServerPid();
+      const timestamp = new Date().toISOString();
+
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        if (trimmedLine) {
+          const logEntry = `[${timestamp}] [PID:${pid || 'unknown'}] ${trimmedLine}\n`;
+          fs.appendFileSync('server.log', logEntry);
+        }
+      }
+    } finally {
+      this.isLogging = false;
+    }
   }
 
   startAPIServer() {
@@ -46,17 +97,24 @@ class PMShellAPIFrontend {
 
     return new Promise((resolve, reject) => {
       // Run the API server as detached process
+      // Use the shebang to pick the correct Python from environment
       this.apiServer = spawn(serverPath, [
         '--host', this.apiHost,
         '--port', this.apiPort.toString()
       ], {
         env: process.env,
         detached: true,  // Run independently
-        stdio: 'ignore'  // Don't pipe stdio
+        stdio: ['ignore', 'pipe', 'pipe']  // Pipe stdout and stderr for logging
       });
 
-      // Store the PID for later use
-      this.serverPid = this.apiServer.pid;
+      // Log server output to file with timestamp and PID
+      this.apiServer.stdout.on('data', (data) => {
+        this.logServerOutput(data.toString());
+      });
+
+      this.apiServer.stderr.on('data', (data) => {
+        this.logServerOutput(data.toString());
+      });
 
       // Detach the process so it can run independently
       this.apiServer.unref();
@@ -109,7 +167,13 @@ class PMShellAPIFrontend {
       const input = line.trim();
 
       if (input === 'quit' || input === 'exit') {
-        await this.shutdown();
+        this.rl.close();
+        return;
+      }
+
+      if (input === 'help' || input === '?') {
+        this.showHelp();
+        this.rl.prompt();
         return;
       }
 
@@ -240,23 +304,57 @@ class PMShellAPIFrontend {
     });
   }
 
+  showHelp() {
+    console.log(chalk.cyan.bold('\nPMShell Client Commands:'));
+    console.log(chalk.gray('─'.repeat(50)));
+
+    console.log(chalk.green('  help, ?') + '          ' + chalk.white('Show this help message'));
+    console.log(chalk.green('  kill_server') + '      ' + chalk.white('Terminate the backend API server'));
+    console.log(chalk.green('  quit, exit') + '       ' + chalk.white('Exit the client (server continues running)'));
+
+    console.log(chalk.cyan.bold('\nPMShell Commands (passed to backend):'));
+    console.log(chalk.gray('─'.repeat(50)));
+
+    console.log(chalk.green('  summary') + '          ' + chalk.white('Display model summary'));
+    console.log(chalk.green('  nparams') + '          ' + chalk.white('Show number of parameters'));
+    console.log(chalk.green('  show config') + '      ' + chalk.white('Display current configuration'));
+    console.log(chalk.green('  show llm') + '         ' + chalk.white('Show LLM provider information'));
+    console.log(chalk.green('  set ctx <name>') + '   ' + chalk.white('Set context (model/layer/image)'));
+    console.log(chalk.green('  load <path>') + '      ' + chalk.white('Load model checkpoint'));
+    console.log(chalk.green('  layers') + '           ' + chalk.white('List all layers'));
+    console.log(chalk.green('  compare <layer>') + '  ' + chalk.white('Compare layer activations'));
+
+    console.log(chalk.gray('\nType any pmshell command to execute it on the backend.'));
+    console.log(chalk.gray('For more pmshell commands, see the backend documentation.\n'));
+  }
+
   async killServer() {
-    if (!this.serverPid) {
-      console.log(chalk.yellow('⚠ No server PID stored. Server may not be running.'));
-      return;
-    }
+    console.log(chalk.gray('Sending shutdown command to server...'));
 
     try {
-      // Kill the server process
-      process.kill(this.serverPid, 'SIGTERM');
-      console.log(chalk.green(`✓ Sent SIGTERM to backend server (PID: ${this.serverPid})`));
-      this.serverPid = null;
-    } catch (err) {
-      if (err.code === 'ESRCH') {
-        console.log(chalk.yellow(`⚠ Server process (PID: ${this.serverPid}) not found. It may have already exited.`));
-        this.serverPid = null;
+      // Send shutdown request to server
+      await this.makeRequest('/server/shutdown', { method: 'POST' });
+      console.log(chalk.green('✓ Shutdown command sent'));
+
+      // Wait a moment for server to shut down
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Verify server has exited
+      const serverRunning = await this.checkServerRunning();
+
+      if (serverRunning) {
+        console.log(chalk.yellow('⚠ Server is still running'));
       } else {
-        console.log(chalk.red(`✗ Failed to kill server: ${err.message}`));
+        console.log(chalk.green('✓ Server has shut down'));
+      }
+    } catch (err) {
+      // If request fails, server might already be down
+      const serverRunning = await this.checkServerRunning();
+
+      if (!serverRunning) {
+        console.log(chalk.yellow('⚠ Server is not running'));
+      } else {
+        console.log(chalk.red('✗ Failed to shutdown server: ' + err.message));
       }
     }
   }
@@ -264,14 +362,10 @@ class PMShellAPIFrontend {
   async shutdown() {
     console.log(chalk.cyan('\nShutting down client...'));
 
-    // Note: API server is detached and will continue running
-    // To stop it, you need to manually kill the process or use an API endpoint
-
     if (this.rl) {
       this.rl.close();
     }
 
-    console.log(chalk.gray('Note: Backend server is still running. Use "kill_server" command to stop it.'));
     process.exit(0);
   }
 }

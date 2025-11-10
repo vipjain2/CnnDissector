@@ -10,7 +10,7 @@ import os
 import sys
 from typing import Optional, Dict, Any, List
 from io import StringIO
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stdout, redirect_stderr, asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -50,11 +50,53 @@ class ModelInfoResponse( BaseModel ):
 shell_instance = None
 
 
-# FastAPI app
+# Lifespan context manager for startup/shutdown
+@asynccontextmanager
+async def lifespan( app: FastAPI ):
+    """Manage application lifespan (startup and shutdown)."""
+    global shell_instance
+    global image, model
+
+    # Startup
+    print( "PyTorch Model Shell API server starting..." )
+
+    # Import pmshell module by loading it dynamically
+    import importlib.util
+    import importlib.machinery
+    script_dir = os.path.dirname( os.path.abspath( __file__ ) )
+    pmshell_path = os.path.join( script_dir, "pmshell" )
+
+    # Load pmshell as a module using SourceFileLoader (works with files without .py extension)
+    loader = importlib.machinery.SourceFileLoader( "pmshell_module", pmshell_path )
+    spec = importlib.util.spec_from_loader( loader.name, loader )
+    pmshell_module = importlib.util.module_from_spec( spec )
+    sys.modules["pmshell_module"] = pmshell_module
+    loader.exec_module( pmshell_module )
+
+    # Get Shell and Config classes
+    Shell = pmshell_module.Shell
+    Config = pmshell_module.Config
+    image = pmshell_module.image
+    model = pmshell_module.model
+    
+    config = Config()
+    shell_instance = Shell( config )
+
+    print( "PyTorch Model Shell API server started" )
+    print( f"Shell instance initialized with config" )
+
+    yield  # Server runs here
+
+    # Shutdown
+    print( "PyTorch Model Shell API server shutting down" )
+
+
+# FastAPI app with lifespan
 app = FastAPI(
     title="PyTorch Model Shell API",
     description="Stateful REST API for pmshell - one instance per user",
-    version="1.0.0"
+    version="1.0.0",
+    lifespan=lifespan
 )
 
 # CORS middleware to allow frontend connections
@@ -87,41 +129,6 @@ def capture_output( func, *args, **kwargs ):
     return stdout_buffer.getvalue(), stderr_buffer.getvalue(), exception
 
 
-@app.on_event( "startup" )
-async def startup_event():
-    """Initialize the shell instance on server startup."""
-    global shell_instance
-
-    # Import pmshell module by loading it dynamically
-    import importlib.util
-    import importlib.machinery
-    script_dir = os.path.dirname( os.path.abspath( __file__ ) )
-    pmshell_path = os.path.join( script_dir, "pmshell" )
-
-    # Load pmshell as a module using SourceFileLoader (works with files without .py extension)
-    loader = importlib.machinery.SourceFileLoader( "pmshell_module", pmshell_path )
-    spec = importlib.util.spec_from_loader( loader.name, loader )
-    pmshell_module = importlib.util.module_from_spec( spec )
-    sys.modules["pmshell_module"] = pmshell_module
-    loader.exec_module( pmshell_module )
-
-    # Get Shell and Config classes
-    Shell = pmshell_module.Shell
-    Config = pmshell_module.Config
-
-    config = Config()
-    shell_instance = Shell( config )
-
-    print( "PyTorch Model Shell API server started" )
-    print( f"Shell instance initialized with config" )
-
-
-@app.on_event( "shutdown" )
-async def shutdown_event():
-    """Cleanup on server shutdown."""
-    print( "PyTorch Model Shell API server shutting down" )
-
-
 # API Endpoints
 
 @app.get( "/health" )
@@ -131,6 +138,30 @@ async def health_check():
         "status": "healthy",
         "has_shell": shell_instance is not None
     }
+
+
+@app.get( "/server/pid" )
+async def get_server_pid():
+    """Get the server process ID."""
+    return {
+        "pid": os.getpid()
+    }
+
+
+@app.post( "/server/shutdown" )
+async def shutdown_server():
+    """Shutdown the server gracefully."""
+    import signal
+
+    # Schedule shutdown after responding
+    def shutdown():
+        os.kill( os.getpid(), signal.SIGTERM )
+
+    # Import threading to schedule shutdown
+    import threading
+    threading.Timer( 0.5, shutdown ).start()
+
+    return {"message": "Server shutting down"}
 
 
 @app.post( "/command", response_model=CommandResponse )
@@ -144,15 +175,21 @@ async def execute_command( request: CommandRequest ):
     if shell_instance is None:
         raise HTTPException( status_code=500, detail="Shell not initialized" )
 
-    stdout_output, stderr_output, exception = capture_output(
-        shell_instance.onecmd,
-        shell_instance.precmd( request.command )
-    )
+    # Set up API output buffer
+    output_buffer = StringIO()
+    shell_instance.api_output = output_buffer
 
-    # Combine stdout and stderr
-    full_output = stdout_output
-    if stderr_output:
-        full_output += "\n" + stderr_output
+    exception = None
+    try:
+        shell_instance.onecmd( shell_instance.precmd( request.command ) )
+    except Exception as e:
+        exception = e
+    finally:
+        # Clear API output buffer
+        shell_instance.api_output = None
+
+    # Get captured output
+    full_output = output_buffer.getvalue()
 
     if exception:
         return CommandResponse(

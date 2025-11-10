@@ -16,6 +16,7 @@ class ShellBase:
         super().__init__()
         self.quiet = False
         self.stdout = sys.stdout
+        self.api_output = None  # Separate stream for API mode
         self.image_size = 224
         self.device = "cpu"
         self.models = {}
@@ -163,11 +164,15 @@ class ShellBase:
 
 
     def error( self, err_msg ):
-        self.stdout.write( "*** {}\n".format( err_msg ) )
+        # Use api_output if set (API mode), otherwise use stdout (interactive mode)
+        output_stream = self.api_output if self.api_output is not None else self.stdout
+        output_stream.write( "*** {}\n".format( err_msg ) )
 
     def message( self, msg="", end="\n" ):
         if not self.quiet:
-            self.stdout.write( msg + end )
+            # Use api_output if set (API mode), otherwise use stdout (interactive mode)
+            output_stream = self.api_output if self.api_output is not None else self.stdout
+            output_stream.write( msg + end )
 
     def help( self, msg="", end="\n" ):
         if self.verbose_help:
