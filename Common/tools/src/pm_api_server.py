@@ -77,7 +77,7 @@ async def lifespan( app: FastAPI ):
     Config = pmshell_module.Config
 
     config = Config()
-    shell_instance = Shell( config )
+    shell_instance = Shell( config, server_mode=True )
 
     print( "PyTorch Model Shell API server started" )
     print( f"Shell instance initialized with config" )
@@ -172,21 +172,14 @@ async def execute_command( request: CommandRequest ):
     if shell_instance is None:
         raise HTTPException( status_code=500, detail="Shell not initialized" )
 
-    # Set up API output buffer
-    output_buffer = StringIO()
-    shell_instance.api_output = output_buffer
-
     exception = None
     try:
         shell_instance.onecmd( shell_instance.precmd( request.command ) )
     except Exception as e:
         exception = e
-    finally:
-        # Clear API output buffer
-        shell_instance.api_output = None
 
-    # Get captured output
-    full_output = output_buffer.getvalue()
+    # Get captured output from server mode buffer
+    full_output = shell_instance.get_output()
 
     if exception:
         return CommandResponse(

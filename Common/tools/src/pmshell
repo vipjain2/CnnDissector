@@ -28,8 +28,8 @@ class Config:
     pass 
 
 class Shell( ShellBase, Commands, cmd.Cmd ):
-    def __init__( self, config ):
-        super().__init__()
+    def __init__( self, config, server_mode=False ):
+        super().__init__( server_mode=server_mode )
         self.config = config
         self.rc_lines = []
         self.dataset = None

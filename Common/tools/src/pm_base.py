@@ -12,11 +12,13 @@ from pm_helper_classes import GraphWindow, ModelMeta
 
 
 class ShellBase:
-    def __init__( self ):
+    def __init__( self, server_mode=False ):
         super().__init__()
         self.quiet = False
         self.stdout = sys.stdout
-        self.api_output = None  # Separate stream for API mode
+        self.server_mode = server_mode
+        # In server mode, create output buffer at initialization
+        self.api_output = StringIO() if server_mode else None
         self.image_size = 224
         self.device = "cpu"
         self.models = {}
@@ -173,6 +175,16 @@ class ShellBase:
             # Use api_output if set (API mode), otherwise use stdout (interactive mode)
             output_stream = self.api_output if self.api_output is not None else self.stdout
             output_stream.write( msg + end )
+
+    def get_output( self ):
+        """Get and clear the output buffer in server mode."""
+        if self.server_mode and self.api_output:
+            output = self.api_output.getvalue()
+            # Clear the buffer for next command
+            self.api_output.truncate( 0 )
+            self.api_output.seek( 0 )
+            return output
+        return ""
 
     def help( self, msg="", end="\n" ):
         if self.verbose_help:
