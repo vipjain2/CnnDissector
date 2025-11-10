@@ -165,7 +165,6 @@ class ShellBase:
         window.add_image( grid )
         window.show()
 
-
     def error( self, err_msg ):
         # Use api_output if set (API mode), otherwise use stdout (interactive mode)
         output_stream = self.api_output if self.api_output is not None else self.stdout

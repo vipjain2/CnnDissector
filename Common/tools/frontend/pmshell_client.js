@@ -318,6 +318,14 @@ class PMShellAPIFrontend {
     });
   }
 
+  async safeRequest(endpoint, options = {}) {
+    try {
+      return await this.makeRequest(endpoint, options);
+    } catch (err) {
+      return null;
+    }
+  }
+
   async showHelp() {
     console.log(chalk.cyan.bold('\nPMShell Client Commands:'));
     console.log(chalk.gray('─'.repeat(50)));
@@ -328,18 +336,16 @@ class PMShellAPIFrontend {
     console.log(chalk.green('  quit, exit') + '            ' + chalk.white('Exit the client'));
 
     // Get pmshell help from backend
-    try {
-      const response = await this.makeRequest('/command', {
-        method: 'POST',
-        body: JSON.stringify({ command: 'help' })
-      });
+    const response = await this.safeRequest('/command', {
+      method: 'POST',
+      body: JSON.stringify({ command: 'help' })
+    });
 
-      if (response.success && response.output) {
-        console.log(chalk.cyan.bold('\nPMShell Server Commands:'));
-        console.log(chalk.gray('─'.repeat(50)));
-        console.log(response.output);
-      }
-    } catch (err) {
+    if (response && response.success && response.output) {
+      console.log(chalk.cyan.bold('\nPMShell Server Commands:'));
+      console.log(chalk.gray('─'.repeat(50)));
+      console.log(response.output);
+    } else {
       console.log(chalk.yellow('\n⚠ Could not fetch pmshell help from backend'));
       console.log(chalk.gray('Type pmshell commands directly to execute them on the backend.\n'));
     }
@@ -386,6 +392,13 @@ class PMShellAPIFrontend {
     console.log(chalk.gray('\nStarting new server...'));
     await this.startAPIServer();
     await this.waitForServer();
+
+    // Fetch and display server startup messages
+    const response = await this.safeRequest('/server/output');
+    if (response && response.output) {
+      console.log(response.output);
+    }
+
     console.log(chalk.green('✓ Server restarted successfully\n'));
   }
 

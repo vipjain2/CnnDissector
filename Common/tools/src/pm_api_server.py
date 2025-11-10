@@ -161,6 +161,16 @@ async def shutdown_server():
     return {"message": "Server shutting down"}
 
 
+@app.get( "/server/output" )
+async def get_server_output():
+    """Get and clear the server output buffer."""
+    if shell_instance is None:
+        raise HTTPException( status_code=500, detail="Shell not initialized" )
+
+    output = shell_instance.get_output()
+    return {"output": output}
+
+
 @app.post( "/command", response_model=CommandResponse )
 async def execute_command( request: CommandRequest ):
     """
