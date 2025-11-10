@@ -1,0 +1,24 @@
+{
+  "name": "pmshell-frontend",
+  "version": "1.0.0",
+  "description": "Terminal frontend for PyTorch Model Shell with REST API backend",
+  "main": "pmshell_client.js",
+  "scripts": {
+    "start": "node pmshell_client.js"
+  },
+  "keywords": [
+    "pytorch",
+    "model",
+    "shell",
+    "terminal"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=12.0.0"
+  },
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "boxen": "^5.1.2"
+  }
+}

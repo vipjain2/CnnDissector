@@ -52,7 +52,7 @@ Be concise, technical, and actionable in your responses."""
 
             self.register_provider( provider_name, provider_obj )
             self.set_provider( provider_name )
-            
+
         except Exception as e:
             print( f"WARNING: Failed to initialize LLM : {e}" )
 
@@ -253,13 +253,9 @@ Be concise, technical, and actionable in your responses."""
         return self._provider.generate( prompt, system_prompt=self.SYSTEM_PROMPT )
 
 
-    def describe_architecture( self, model: nn.Module, model_name: str = "Model" ) -> str:
+    def describe_architecture( self, model: nn.Module, model_name: str = None ) -> str:
         """
         Generate a high-level description of the entire network architecture.
-
-        Args:
-            model: PyTorch model
-            model_name: Name of the model
         """
         if not self.is_available():
             raise Exception( "LLM service not available. Configure a provider first." )

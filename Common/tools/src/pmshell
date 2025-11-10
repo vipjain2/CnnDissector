@@ -37,22 +37,8 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
         self.data_post_process_fn = None
         #self.use_rawinput = False
         self.cur_frame = sys._getframe().f_back
-        
-        # Look for .pmdebugrc in current directory first, then in home directory
-        rc_file = None
-        if os.path.exists( ".pmdebugrc" ):
-            rc_file = ".pmdebugrc"
-        elif os.path.exists( os.path.expanduser( "~/.pmdebugrc" ) ):
-            rc_file = os.path.expanduser( "~/.pmdebugrc" )
 
-        if rc_file:
-            try:
-                with open( rc_file ) as f:
-                    self.rc_lines.extend( f )
-            except OSError:
-                pass
-        self.exec_rc()
-
+        self.load_and_execute_rc_file()
         self.init_history( histfile=".pmdebug_history" )
         atexit.register( self.save_history, histfile=".pmdebug_history" )
 
@@ -63,7 +49,9 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
         # Initialize LLM service
         self.message( "Initializing LLM service...", end="" )
         try:
-            service_config_file = "llm_service_config.yaml"
+            # Use path relative to this script's location
+            script_dir = os.path.dirname( os.path.abspath( __file__ ) )
+            service_config_file = os.path.join( script_dir, "llm_service_config.yaml" )
             self.llm_service = LLMService( service_config_file )
             self.llm_service.create_service()
         except Exception as e:
@@ -636,6 +624,29 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
         self.expand_config_paths()
         self.quiet = self.stack.pop()
         self.message( "Done" )
+
+
+    def load_and_execute_rc_file( self ):
+        """
+        Look for .pmdebugrc in current directory first, then in home directory,
+        then in script directory. Load and execute the first one found.
+        """
+        rc_file = None
+        if os.path.exists( ".pmdebugrc" ):
+            rc_file = ".pmdebugrc"
+        elif os.path.exists( os.path.expanduser( "~/.pmdebugrc" ) ):
+            rc_file = os.path.expanduser( "~/.pmdebugrc" )
+        else:
+            script_dir = os.path.dirname( os.path.abspath( __file__ ) )
+            rc_file = os.path.join( script_dir, ".pmdebugrc" )
+
+        if rc_file:
+            try:
+                with open( rc_file ) as f:
+                    self.rc_lines.extend( f )
+            except OSError:
+                pass
+        self.exec_rc()
 
 
     def init_history( self, histfile ):

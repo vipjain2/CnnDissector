@@ -29,13 +29,13 @@ class Commands:
 
         # Add LLM analysis if available
         if hasattr(self, 'llm_service') and self.llm_service and self.llm_service.is_available():
-            self.message( "\n" + "=" * 60 )
-            self.message( "LLM Analysis:" )
-            self.message( "=" * 60 )
+            self.message( "\n" + "=" * 50 )
+            self.message( "Analysis:" )
+            self.message( "=" * 50 )
             try:
                 description = self.llm_service.describe_architecture(model, model_info.name)
                 self.message( description )
-                self.message( "=" * 60 )
+                self.message( "=" * 50 )
             except Exception as e:
                 self.error( f"LLM analysis failed: {e}" )
         else:
