@@ -178,13 +178,21 @@ class PMShellAPIFrontend {
       }
 
       if (normalizedInput === 'kill_server') {
-        await this.killServer();
+        try {
+          await this.killServer();
+        } catch (err) {
+          console.log(chalk.red('✗ Failed to kill server: ' + err.message));
+        }
         this.rl.prompt();
         return;
       }
 
       if (normalizedInput === 'restart_server') {
-        await this.restartServer();
+        try {
+          await this.restartServer();
+        } catch (err) {
+          console.log(chalk.red('✗ Failed to restart server: ' + err.message));
+        }
         this.rl.prompt();
         return;
       }
