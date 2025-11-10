@@ -6,6 +6,8 @@ const chalk = require('chalk');
 const boxen = require('boxen');
 const http = require('http');
 const fs = require('fs');
+const { marked } = require('marked');
+const TerminalRenderer = require('marked-terminal');
 
 class PMShellAPIFrontend {
   constructor() {
@@ -15,6 +17,11 @@ class PMShellAPIFrontend {
     this.apiPort = 8000;
     this.apiBaseUrl = `http://${this.apiHost}:${this.apiPort}`;
     this.isLogging = false;  // Flag to prevent recursive logging
+
+    // Configure marked for terminal rendering
+    marked.setOptions({
+      renderer: new TerminalRenderer()
+    });
   }
 
   async start() {
@@ -230,7 +237,35 @@ class PMShellAPIFrontend {
     this.rl.prompt();
   }
 
+  isMarkdown(text) {
+    // Detect markdown by looking for common markdown patterns
+    const markdownPatterns = [
+      /^#{1,6}\s/m,           // Headers
+      /\*\*.*\*\*/,           // Bold
+      /\*.*\*/,               // Italic
+      /\[.*\]\(.*\)/,         // Links
+      /^[-*+]\s/m,            // Unordered lists
+      /^\d+\.\s/m,            // Ordered lists
+      /^```/m,                // Code blocks
+      /`[^`]+`/               // Inline code
+    ];
+
+    return markdownPatterns.some(pattern => pattern.test(text));
+  }
+
   handleOutput(output) {
+    // Check if the entire output looks like markdown
+    if (this.isMarkdown(output)) {
+      try {
+        const rendered = marked(output);
+        console.log(rendered);
+        return;
+      } catch (err) {
+        // If markdown rendering fails, fall through to line-by-line processing
+      }
+    }
+
+    // Line-by-line processing for non-markdown output
     const lines = output.split('\n');
 
     lines.forEach(line => {

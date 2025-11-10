@@ -19,6 +19,8 @@
   },
   "dependencies": {
     "chalk": "^4.1.2",
-    "boxen": "^5.1.2"
+    "boxen": "^5.1.2",
+    "marked": "^4.3.0",
+    "marked-terminal": "^5.2.0"
   }
 }

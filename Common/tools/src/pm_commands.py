@@ -2,6 +2,7 @@ import os, sys
 from functools import reduce
 from pm_helper_classes import Dataset
 from layer_visualizer import LayerVisualizer
+import torch.nn as nn
 
 
 class Commands:
@@ -102,6 +103,24 @@ class Commands:
     do_show_conf = do_show_config
 
 
+    def do_load_image( self, args ):
+        """Load a single image from the path specified
+        Usage: load image [ path ]
+        """
+        image_path = os.path.join( self.config.image_path, args )
+        if not os.path.isfile( image_path ):
+            self.error( "Image not found")
+            return
+        self.message( "Loading image {}".format( image_path ) )
+        image = Image.open( image_path )
+        transform = transforms.Compose( [ transforms.Resize( ( self.image_size, self.image_size ) ),
+                                         
+                                          transforms.ToTensor() ] )
+        image = transform( image ).float().unsqueeze( 0 )
+        # Store image in current frame's namespace
+        self.cur_frame.f_locals[ 'image' ] = image
+        self.cur_frame.f_globals[ 'image'] = image
+
     def do_show_image( self, args ):
         """Display an image array:
         Usage: show image [ image_var ]
@@ -123,6 +142,96 @@ class Commands:
             return
 
     do_show_img = do_show_image
+
+
+    def do_image_next( self, args ):
+        """Load the next available image from a dataset:
+        Usage: image next
+        
+        This command operates on a dataset. A dataset must be configued for this 
+        command. If there are no more images available to be loaded, it keeps the 
+        last available image.
+        The "image" global variable points to the loaded image.
+        """ 
+        if self.dataset is None:
+            self.message( "Please configure a dataset first" )
+            return
+
+        self.dataset.next()
+        image = self.dataset.load()
+        # Store image in current frame's namespace
+        self.cur_frame.f_locals[ 'image' ] = image
+        self.cur_frame.f_globals[ 'image'] = image
+        
+        self.fig.imshow( image )
+
+
+    def do_set_context( self, args ):
+        model_name = args if args else "model"
+        model = self.load_from_global( model_name )
+        if model is None:
+            self.error( "Could not find a model by name \"{}\"".format( model_name ) )
+            return
+
+        if not isinstance( model, nn.Module ):
+            self.error( "{} is not a valid model" )
+            return
+
+        self.set_model( model_name, model )
+
+        self.message( "Context now is \"{}\"".format( model_name ) )
+        self.fig.set_window_title( model_name )
+    
+    do_set_ctx = do_set_context
+
+
+    def do_resync( self, args ):
+        if not args:
+            self.error( "Please provide a model name" )
+            return
+
+        if args not in self.models:
+            self.error( "Model \"{}\" not in context".format( args ) )
+            return
+
+        self.resync_model( args )
+
+
+    def do_load_checkpoint( self, args ):
+        """Load a checkpoint file into the model:
+        Usage: load checkpoint [ filename ]
+
+        If no file is specified, checkpoint_name specified in the
+        config file is used"""
+        model_info = self.cur_model
+        if model_info is None:
+            self.error( "No default model set in context." )
+            return
+        
+        model = model_info.model
+
+        if args:
+            file = os.path.join( self.config.checkpoint_path, args )
+        else:
+            file = os.path.join( self.config.checkpoint_path, self.config.checkpoint_name )
+        if not os.path.isfile( file ):
+            self.error( "Checkpoint file not found" )
+            return
+
+        chkpoint = torch.load( file, map_location="cpu" )
+        self.message( "Model \"{}\", loading checkpoint: {}".format( model_info.name, file ) )
+        
+        state_dict = chkpoint[ "model" ]
+
+        try:
+            model.load_state_dict( state_dict )
+        except RuntimeError:
+            new_state_dict = OrderedDict( [ ( k[ 7: ], v ) for k, v in state_dict.items() 
+                                                            if k.startswith( "module" ) ] )
+            model.load_state_dict( new_state_dict )
+
+    do_load_chkp = do_load_checkpoint
+    do_laod_chkp = do_load_checkpoint
 
 
     def do_visualizer( self, args ):
