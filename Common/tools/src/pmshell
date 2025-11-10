@@ -253,6 +253,7 @@ class Shell( ShellBase, Commands, cmd.Cmd ):
     do_infer = do_infer_image
     do_show_infer = do_infer_image
 
+
     @supports_compare
     def do_show_first_layer_weights( self, args ):
         """Display the weight vectors in a layer as a grid:

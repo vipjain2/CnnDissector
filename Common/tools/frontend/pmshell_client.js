@@ -123,8 +123,6 @@ class PMShellAPIFrontend {
       this.apiServer.on('close', (code) => {
         if (code !== 0) {
           console.log(chalk.yellow(`\n⚠ Backend server exited with code ${code}`));
-          console.log(chalk.gray('The client will continue running, but API calls will fail.'));
-          console.log(chalk.gray('You may need to restart the backend server manually.'));
         }
         // Don't call process.exit() - let client continue
       });
@@ -319,7 +317,7 @@ class PMShellAPIFrontend {
     console.log(chalk.green('  help, ?') + '               ' + chalk.white('Show this help message'));
     console.log(chalk.green('  kill server') + '           ' + chalk.white('Terminate the backend API server'));
     console.log(chalk.green('  restart server') + '        ' + chalk.white('Restart the backend API server'));
-    console.log(chalk.green('  quit, exit') + '            ' + chalk.white('Exit the client (server continues running)'));
+    console.log(chalk.green('  quit, exit') + '            ' + chalk.white('Exit the client'));
 
     // Get pmshell help from backend
     try {

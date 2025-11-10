@@ -55,7 +55,6 @@ shell_instance = None
 async def lifespan( app: FastAPI ):
     """Manage application lifespan (startup and shutdown)."""
     global shell_instance
-    global image, model
 
     # Startup
     print( "PyTorch Model Shell API server starting..." )
@@ -76,9 +75,7 @@ async def lifespan( app: FastAPI ):
     # Get Shell and Config classes
     Shell = pmshell_module.Shell
     Config = pmshell_module.Config
-    image = pmshell_module.image
-    model = pmshell_module.model
-    
+
     config = Config()
     shell_instance = Shell( config )
 
