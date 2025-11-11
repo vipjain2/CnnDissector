@@ -1,16 +1,20 @@
 import os, sys
+import functools
+import numpy as np
 from functools import reduce
+from collections import OrderedDict
 from pm_helper_classes import Dataset
 from layer_visualizer import LayerVisualizer
+import torch
 import torch.nn as nn
+from torch.nn.functional import softmax
 from PIL import Image
 from torchvision import transforms
 
 
 class Commands:
     """Class containing command methods for the Shell.
-     Methods that don't use global variables or decorators should go here
-     """
+    """
 
     def do_quit( self, args ):
         """Exits the shell
@@ -46,41 +50,6 @@ class Commands:
     do_show_summary = do_summary
 
 
-    def do_show_layers( self, args ):
-        """Prints pytorch layers list
-        """
-        model_info, _ = self.get_info_from_context( args )
-        if model_info is None:
-            self.message( "Model not found. Please set the model in context first" )
-            return
-
-        model = model_info.model
-        try:
-            self.message( "Model: {}".format( model_info.name ) )
-            self.message( "-" * 60 )
-            for name, module in model.named_modules():
-                if name:  # Skip the root module
-                    self.message( "{:<40} {}".format( name, module.__class__.__name__ ) )
-        except:
-            self.error( sys.exc_info()[ 1 ] )
-
-
-    def do_nparams( self, args ):
-        """Print the total number of parameters in a model
-        """
-        model_info, _  = self.get_info_from_context( args )
-        if model_info is None:
-            self.message( "Model \"{}\" not found. Please set the model in context first".format( args ) )
-            return
-
-        model = model_info.model
-        n =  sum( reduce( lambda x, y: x * y, p.size() ) for p in model.parameters())
-        print( "{:,}".format( n ) )
-
-    do_nparam = do_nparams
-    do_show_nparams = do_nparams
-
-
     def do_show_config( self, args ):
         """Display the current configuration settings
         Usage: show config
@@ -104,7 +73,43 @@ class Commands:
 
     do_show_conf = do_show_config
 
+    ####################################
+    # Decorators
+    ####################################
+    def supports_compare( func ):    # pylint: disable=no-self-argument
+        """We store self.compare on the stack to make the decorator reentrant
+        This avoids recursion in case a function that supports this decorator
+        is called again inside the decorator
+        """
 
+        @functools.wraps( func )
+        def wrapper( self, *kargs, **kwargs ):
+            compare = self.compare
+            self.stack.append( self.compare )
+            self.compare = None
+
+            if compare:
+                self.fig.set_mode( "dual" )
+    
+            try:
+                if compare == "image":
+                    self.do_show_image( *kargs, **kwargs )
+                elif compare is not None:
+                    func( self, compare )       #pylint: disable=not-callable
+
+                func( self, *kargs, **kwargs )  #pylint: disable=not-callable
+            except:
+                raise
+            finally:
+                self.compare = self.stack.pop()
+                if compare:
+                    self.fig.set_mode( "single" )
+
+        return wrapper
+
+    #############################################
+    # All the image related functions go here
+    #############################################
     def do_load_image( self, args ):
         """Load a single image from the path specified
         Usage: load image [ path ]
@@ -168,6 +173,203 @@ class Commands:
         self.fig.imshow( image )
 
 
+    def do_heatmap_next( self, args ):
+        global image
+        
+        if self.dataset is None:
+            self.error( "No dataset configured" )
+            return
+
+        self.dataset.next()
+        image = self.dataset.load()
+        # Store image in current frame's namespace
+        self.cur_frame.f_locals[ 'image' ] = image
+        self.cur_frame.f_globals[ 'image'] = image
+        
+        self.do_show_heatmap( args=args )
+
+    do_heat_next = do_heatmap_next
+
+
+    def do_activations_next( self, args ):
+        global image
+        
+        if self.dataset is None:
+            self.error( "No dataset configured" )
+            return
+
+        self.dataset.next()
+        image = self.dataset.load()
+        # Store image in current frame's namespace
+        self.cur_frame.f_locals[ 'image' ] = image
+        self.cur_frame.f_globals[ 'image'] = image
+        
+        self.do_show_activations( args=args )
+
+    do_act_next = do_activations_next
+
+
+    @supports_compare
+    def do_show_first_layer_weights( self, args ):
+        """Display the weight vectors in a layer as a grid:
+        Usage: show first layer weights [ model name/tensor ]
+        
+        If no arguments are given, it displays the first Conv layer weights in the default model
+        set in the context
+        If an optional model name if provided, it displays the first layer weight for that
+        model
+        Optionally, a weight tensor can be given as an argument.
+        """
+        if not args and not self.cur_model:
+            self.error( "No default model is set. Please set a model in context first." )
+            return
+        
+        title = "Tensor {}".format( args )
+        _weight = None
+        if args and args not in self.models:
+            _weight = self.in_place_eval( args )
+            if _weight is None or not isinstance( _weight, torch.Tensor ):
+                self.error( "Can not display \"{}\". Not a model in context, or a tensor.".format( args ) )
+                return
+
+            if _weight.dim() != 4 and _weight.size[ 1 ] not in ( 3, 1 ):
+                self.error( "Tensor \"{}\" is incorrect shape for display".format( args ) )
+                return
+
+        if _weight is None: 
+            model_info = self.models[ args ] if args else self.cur_model
+            title = "{} first layer weights".format( model_info.name )
+            _, conv = model_info.find_first_instance( type=nn.Conv2d )
+            if not conv:
+                self.error( "No Conv2d layer found" )
+                return
+            _weight = conv.weight.detach()
+        
+        self.show_weights_as_grid( _weight, title )
+
+    do_show_flw = do_show_first_layer_weights
+
+
+    @supports_compare
+    def do_show_activations( self, args ):
+        model_info, layer_info = self.get_info_from_context( args )
+
+        if model_info is None:
+            return
+
+        img = self.load_from_global( "image" )
+        if img is None:
+            self.error( "Please load an input image first" )
+            return
+
+        if self.data_post_process_fn:
+            self.message( "Using processing function {}".format( self.data_post_process_fn.__name__ ) )
+
+        layer_info.register_forward_hook()
+        net = model_info.model
+        out = net( image )
+        self.message( "{} out: {}".format( model_info.name, out.argmax() ) )
+
+        title = "{}{} activations".format( model_info.name, layer_info.id )
+        self.display_bargraph( layer_info.data(), title, reduce_fn=self.data_post_process_fn )
+
+    do_show_act = do_show_activations
+
+
+    @supports_compare
+    def do_show_heatmap( self, args ):
+        model_info, layer_info = self.get_info_from_context( args )
+        
+        if model_info is None:
+            self.message( "Please set a model in context first" )
+            return
+
+        img = self.load_from_global( "image" )
+        if img is None:
+            self.error( "No input image available" )
+            return
+
+        id, layer = model_info.find_last_instance( layer=nn.Conv2d )
+        layer_info = model_info.get_layer_info( id, layer )
+        layer_info.register_forward_hook()
+
+        net = model_info.model
+        idx = net( image ).argmax()
+        
+        _, fc = model_info.find_last_instance( layer=nn.Linear )
+        fc_weights = fc.weight[ idx ].data.numpy()
+
+        activations = layer_info.data()[ 0 ].data.numpy()        
+        nc, h, w = activations.shape
+        
+        cam = fc_weights.reshape( 1, nc ).dot( activations.reshape( nc, h * w ) )
+        cam = cam.reshape( h, w )
+        cam = ( cam - np.min( cam ) ) / np.max( cam )
+        cam = Image.fromarray( cam )
+
+        _, _, h, w = img.size()     
+        cam = cam.resize( ( h, w ), Image.BICUBIC )
+        cam = transforms.ToTensor()( cam )[ 0 ]
+        
+        msg = "{} guess: {}".format( model_info.name, idx )
+        self.message( msg )
+        window = self.fig.get_or_create_window()
+        window.add_title( msg )
+        window.add_image( img )
+        window.add_image( cam, cmap="jet", alpha=0.5 )
+        window.show()
+
+    do_show_heat = do_show_heatmap
+
+
+    @supports_compare
+    def do_show_weights( self, args ):
+        model_info, layer_info = self.get_info_from_context( args )
+        if model_info is None:
+            return
+
+        id, layer = layer_info.id, layer_info.layer
+        self.message( "Current layer is {}: {}".format( id, layer ) )
+
+        if self.data_post_process_fn:
+            self.message( "Post processing function is {}".format( self.data_post_process_fn.__name__ ) )
+
+        try:
+            data = layer_info.layer.weight.unsqueeze( 0 )
+        except:
+            self.error( "Current layer has no weights")
+        else:
+            title = "{} weights".format( layer_info.id )
+            self.display_bargraph( data, title, reduce_fn=self.data_post_process_fn )
+
+    do_show_weight = do_show_weights
+    do_show_wei = do_show_weights
+
+
+    @supports_compare
+    def do_show_grads( self, args ):
+        model_info, layer_info = self.get_info_from_context( args )
+        if model_info is None:
+            return
+    
+        id, layer = layer_info.id, layer_info.layer
+        self.message( "Current layer is {}: {}".format( id, layer ) )
+
+        if self.data_post_process_fn:
+            self.message( "Post processing function is {}".format( self.data_post_process_fn.__name__ ) )
+
+        try:
+            data = layer_info.layer.weight.grad.unsqueeze( 0 )
+        except:
+            self.error( "Current layer has no gradients" )
+        else:
+            title = "{} gradients".format( layer_info.id )
+            self.display_bargraph( data, title, reduce_fn=self.data_post_process_fn )
+
+
+    #############################################
+    # All the 'model' related functions go here
+    #############################################
     def do_set_context( self, args ):
         model_name = args if args else "model"
         model = self.load_from_global( model_name )
@@ -234,6 +436,72 @@ class Commands:
 
     do_load_chkp = do_load_checkpoint
     do_laod_chkp = do_load_checkpoint
+
+
+    def do_show_layers( self, args ):
+        """Prints pytorch layers list
+        """
+        model_info, _ = self.get_info_from_context( args )
+        if model_info is None:
+            self.message( "Model not found. Please set the model in context first" )
+            return
+
+        model = model_info.model
+        try:
+            self.message( "Model: {}".format( model_info.name ) )
+            self.message( "-" * 60 )
+            for name, module in model.named_modules():
+                if name:  # Skip the root module
+                    self.message( "{:<40} {}".format( name, module.__class__.__name__ ) )
+        except:
+            self.error( sys.exc_info()[ 1 ] )
+
+
+    def do_nparams( self, args ):
+        """Print the total number of parameters in a model
+        """
+        model_info, _  = self.get_info_from_context( args )
+        if model_info is None:
+            self.message( "Model \"{}\" not found. Please set the model in context first".format( args ) )
+            return
+
+        model = model_info.model
+        n =  sum( reduce( lambda x, y: x * y, p.size() ) for p in model.parameters())
+        print( "{:,}".format( n ) )
+
+    do_nparam = do_nparams
+    do_show_nparams = do_nparams
+
+    @supports_compare
+    def do_infer_image( self, args ):
+        """Run inference on image:
+        Usage: infer image [ model_name ]
+
+        If an optional "model_name" is provided, inference is run
+        on that model. The "model_name" must be present in context.
+        If no "model_name" is provided, inference is run on the current 
+        model set in the context.
+
+        Input image is taken from the global "image" variable.
+        """
+        model_info, _ = self.get_info_from_context( args )
+        if model_info is None:
+            return
+
+        img = self.load_from_global( "image" )
+        if img is None:
+            self.error( "Please load an input image first" )
+            return
+
+        net = model_info.model
+        out = net( image )
+        probs, idxs = softmax( out, dim=1 ).topk( 5, dim=1 )
+        self.message( "{}:".format( model_info.name ) )
+        for idx, prob in zip( idxs[ 0 ], probs[ 0 ] ):
+            self.message( "{:<10}{:4.2f}".format( idx.data, prob.data * 100 ) )
+
+    do_infer = do_infer_image
+    do_show_infer = do_infer_image
 
 
     def do_visualizer( self, args ):
@@ -307,3 +575,89 @@ class Commands:
             self.message( "Current dataset is: {}".format( self.dataset.data_path ) )
         else:
             self.error( "Could not change suffix" )
+
+
+    def do_set_post_process( self, args ):
+        if args == "relu":
+            fn = torch.nn.ReLU()
+        elif args == "mean":
+            fn = torch.mean     # pylint: disable=no-member
+        elif args == "max":
+            fn = torch.max      # pylint: disable=no-member
+        elif args == "none" or args == "None":
+            fn = None
+        else:
+            fn = self.load_from_global( args )
+            if not fn:
+                self.error( "Could not find function \"{}\"".format( args ) )
+                return
+
+        if not fn:
+            self.message( "Removing post processing function" )
+            self.data_post_process_fn = None
+            return
+
+        if fn and not callable( fn ):
+            self.error( "Not a valid function" )
+            return
+
+        self.data_post_process_fn = fn
+        if not hasattr( self.data_post_process_fn, "__name__" ):
+            self.data_post_process_fn.__name__ = args
+        self.message( "Post process function is {}".format( self.data_post_process_fn.__name__ ) )
+
+    do_set_postp = do_set_post_process
+
+
+    def do_assign( self, args ):
+        args = args.split()
+
+        def _set_name_and_check_in_use( default ):
+            var = args[ 1 ] if len( args ) > 1 else default
+            if var in self.cur_frame.f_globals or var in self.cur_frame.f_locals:
+                self.error( "Variable \"{}\" already in use.".format( var ) )
+                self.help( "please \"del {}\" first, if you want to reassign this var".format( var ) )
+                return
+            else:
+                return var
+
+        if not self.cur_model:
+            self.error( "Please set a model in context first")
+            return
+        if not args:
+            self.error( "No valid options provided" )
+            return
+
+        if args[ 0 ] == "layer":
+            var = _set_name_and_check_in_use( "layer" )
+            self.cur_frame.f_globals[ var ] = self.cur_model.cur_layer.layer
+            self.cur_frame.f_locals[ var ] = self.cur_model.cur_layer.layer
+
+        elif args[ 0 ] == "weight":
+            var = _set_name_and_check_in_use( "weight" )
+            self.cur_frame.f_globals[ var ] = self.cur_model.cur_layer.layer.weight.data.detach().clone()
+            self.cur_frame.f_locals[ var ] = self.cur_model.cur_layer.layer.weight.data.detach().clone()
+
+        elif args[ 0 ] == "out" or args[ 0 ] == "outsq":
+            var = _set_name_and_check_in_use( "out" )
+            self.cur_model.cur_layer.register_forward_hook()
+
+            # Get image from current frame namespace
+            image = self.cur_frame.f_locals.get('image') or self.cur_frame.f_globals.get('image')
+
+            if image is None:
+                self.cur_frame.f_globals[ var ] = None
+                self.cur_frame.f_locals[ var ] = None
+            else:
+                _ = self.cur_model.model( image )
+            if args[ 0 ] == "outsq":
+                data = self.cur_model.cur_layer.data()
+                result = data.squeeze( 0 ) if data is not None else None
+                self.cur_frame.f_globals[ var ] = result
+                self.cur_frame.f_locals[ var ] = result
+            else:
+                result = self.cur_model.cur_layer.data()
+                self.cur_frame.f_globals[ var ] = result
+                self.cur_frame.f_locals[ var ] = result
+        else:
+            self.error( "Invalid comand option \"{}\"".format( args[ 0 ] ) )
