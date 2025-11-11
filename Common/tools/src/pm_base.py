@@ -107,11 +107,9 @@ class ShellBase:
 
     def get_info_from_context( self, args ):
         if args and args not in self.models:
-            self.error( "Could not find model {}".format( args ) )
             return None, None
         
         if not args and not self.cur_model:
-            self.error( "No default model is set. Please set a model first" )
             return None, None
 
         model_info = self.models[ args ] if args else self.cur_model

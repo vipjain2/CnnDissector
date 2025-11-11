@@ -251,19 +251,9 @@ class PMShellAPIFrontend {
   }
 
   isMarkdown(text) {
-    // Detect markdown by looking for common markdown patterns
-    const markdownPatterns = [
-      /^#{1,6}\s/m,           // Headers
-      /\*\*.*\*\*/,           // Bold
-      /\*.*\*/,               // Italic
-      /\[.*\]\(.*\)/,         // Links
-      /^[-*+]\s/m,            // Unordered lists
-      /^\d+\.\s/m,            // Ordered lists
-      /^```/m,                // Code blocks
-      /`[^`]+`/               // Inline code
-    ];
-
-    return markdownPatterns.some(pattern => pattern.test(text));
+    // Only treat as markdown if it has clear structural markdown elements
+    return /^#{1,6}\s/m.test(text) ||  // Headers
+           /^```/m.test(text);          // Code blocks
   }
 
   async displayImage(imageData) {
@@ -297,7 +287,7 @@ class PMShellAPIFrontend {
     const lines = output.split('\n');
 
     lines.forEach(line => {
-      if (line && !line.includes('pmshell>')) {
+      if (line) {
         // Format different types of output
         if (line.startsWith('***')) {
           // Error messages

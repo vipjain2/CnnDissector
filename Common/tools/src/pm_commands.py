@@ -118,7 +118,7 @@ class Commands:
         if not os.path.isfile( image_path ):
             self.error( "Image not found")
             return
-        self.message( "Loading image {}".format( image_path ) )
+        self.message( f"Loading image {image_path}" )
         image = Image.open( image_path ).convert( 'RGB' )  # Ensure 3 channels
         transform = transforms.Compose( [ transforms.Resize( ( self.image_size, self.image_size ) ),
                                           transforms.ToTensor() ] )
@@ -262,12 +262,12 @@ class Commands:
             return
 
         if self.data_post_process_fn:
-            self.message( "Using processing function {}".format( self.data_post_process_fn.__name__ ) )
+            self.message( f"Using processing function {self.data_post_process_fn.__name__}" )
 
         layer_info.register_forward_hook()
         net = model_info.model
         out = net( image )
-        self.message( "{} out: {}".format( model_info.name, out.argmax() ) )
+        self.message( f"{model_info.name} out: {out.argmax()}" )
 
         title = "{}{} activations".format( model_info.name, layer_info.id )
         self.display_bargraph( layer_info.data(), title, reduce_fn=self.data_post_process_fn )
@@ -329,10 +329,10 @@ class Commands:
             return
 
         id, layer = layer_info.id, layer_info.layer
-        self.message( "Current layer is {}: {}".format( id, layer ) )
+        self.message( f"Current layer is {id}: {layer}" )
 
         if self.data_post_process_fn:
-            self.message( "Post processing function is {}".format( self.data_post_process_fn.__name__ ) )
+            self.message( f"Post processing function is {self.data_post_process_fn.__name__}" )
 
         try:
             data = layer_info.layer.weight.unsqueeze( 0 )
@@ -353,10 +353,10 @@ class Commands:
             return
     
         id, layer = layer_info.id, layer_info.layer
-        self.message( "Current layer is {}: {}".format( id, layer ) )
+        self.message( f"Current layer is {id}: {layer}" )
 
         if self.data_post_process_fn:
-            self.message( "Post processing function is {}".format( self.data_post_process_fn.__name__ ) )
+            self.message( f"Post processing function is {self.data_post_process_fn.__name__}" )
 
         try:
             data = layer_info.layer.weight.grad.unsqueeze( 0 )
@@ -383,7 +383,7 @@ class Commands:
 
         self.set_model( model_name, model )
 
-        self.message( "Context now is \"{}\"".format( model_name ) )
+        self.message( f"Context now is \"{model_name}\"" )
         self.fig.set_window_title( model_name )
     
     do_set_ctx = do_set_context
@@ -423,7 +423,7 @@ class Commands:
             return
 
         chkpoint = torch.load( file, map_location="cpu" )
-        self.message( "Model \"{}\", loading checkpoint: {}".format( model_info.name, file ) )
+        self.message( f"Model \"{model_info.name}\", loading checkpoint: {file}" )
         
         state_dict = chkpoint[ "model" ]
 
@@ -443,16 +443,16 @@ class Commands:
         """
         model_info, _ = self.get_info_from_context( args )
         if model_info is None:
-            self.message( "Model not found. Please set the model in context first" )
+            self.error( "No model is set. Please set a model in context first" )
             return
 
         model = model_info.model
         try:
-            self.message( "Model: {}".format( model_info.name ) )
+            self.message( f"Model: {model_info.name}" )
             self.message( "-" * 60 )
             for name, module in model.named_modules():
                 if name:  # Skip the root module
-                    self.message( "{:<40} {}".format( name, module.__class__.__name__ ) )
+                    self.message( f"{name:<40} {module.__class__.__name__}" )
         except:
             self.error( sys.exc_info()[ 1 ] )
 
@@ -462,7 +462,7 @@ class Commands:
         """
         model_info, _  = self.get_info_from_context( args )
         if model_info is None:
-            self.message( "Model \"{}\" not found. Please set the model in context first".format( args ) )
+            self.error( "Model \"{}\" not found. Please set the model in context first".format( args ) )
             return
 
         model = model_info.model
@@ -496,9 +496,9 @@ class Commands:
         net = model_info.model
         out = net( image )
         probs, idxs = softmax( out, dim=1 ).topk( 5, dim=1 )
-        self.message( "{}:".format( model_info.name ) )
+        self.message( f"{model_info.name}:" )
         for idx, prob in zip( idxs[ 0 ], probs[ 0 ] ):
-            self.message( "{:<10}{:4.2f}".format( idx.data, prob.data * 100 ) )
+            self.message( f"{idx.data:<10}{prob.data * 100:4.2f}" )
 
     do_infer = do_infer_image
     do_show_infer = do_infer_image
@@ -528,7 +528,7 @@ class Commands:
         if not self.cur_model.up():
             self.message( "Already at top" )
         id, layer = self.cur_model.get_cur_id_layer()
-        self.message( "Current layer is {}: {}".format( id, layer ) )
+        self.message( f"Current layer is {id}: {layer}" )
 
 
     def do_down( self, args ):
@@ -538,7 +538,7 @@ class Commands:
         if not self.cur_model.down():
             self.message( "Already at bottom" )
         id, layer = self.cur_model.get_cur_id_layer()
-        self.message( "Current layer is {}: {}".format( id, layer ) )
+        self.message( f"Current layer is {id}: {layer}" )
 
 
     def do_set_class( self, args ):
@@ -574,7 +574,7 @@ class Commands:
 
     def do_dataset_suffix( self, args ):
         if self.dataset.suffix( args ):
-            self.message( "Current dataset is: {}".format( self.dataset.data_path ) )
+            self.message( f"Current dataset is: {self.dataset.data_path}" )
         else:
             self.error( "Could not change suffix" )
 
@@ -606,7 +606,7 @@ class Commands:
         self.data_post_process_fn = fn
         if not hasattr( self.data_post_process_fn, "__name__" ):
             self.data_post_process_fn.__name__ = args
-        self.message( "Post process function is {}".format( self.data_post_process_fn.__name__ ) )
+        self.message( f"Post process function is {self.data_post_process_fn.__name__}" )
 
     do_set_postp = do_set_post_process
 
