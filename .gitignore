@@ -8,5 +8,6 @@
 .pmdebug_history
 llm_service_config.yaml
 server.log
+client.log
 Common/tools/frontend/image-viewer
 node_modules/

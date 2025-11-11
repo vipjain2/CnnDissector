@@ -16,10 +16,11 @@ class ShellBase:
     def __init__( self, server_mode=False ):
         super().__init__()
         self.quiet = False
-        self.stdout = sys.stdout
         self.server_mode = server_mode
         # In server mode, create output buffer at initialization
         self.api_output = StringIO() if server_mode else None
+        # In server mode, redirect stdout to the buffer so exec() output is captured
+        self.stdout = self.api_output if server_mode else sys.stdout
         self.image_size = 224
         self.device = "cpu"
         self.models = {}
@@ -27,7 +28,6 @@ class ShellBase:
         self.verbose_help = True
         self.stack = []
         self.cur_frame = sys._getframe().f_back
-
         self.fig = WindowManager( server_mode=server_mode )
 
     def set_model( self, name, model ):

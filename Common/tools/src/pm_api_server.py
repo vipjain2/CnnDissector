@@ -8,6 +8,7 @@ The frontend communicates via REST API endpoints.
 
 import os
 import sys
+import logging
 from typing import Optional, Dict, Any, List
 from io import StringIO
 from contextlib import redirect_stdout, redirect_stderr, asynccontextmanager
@@ -16,6 +17,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 import cmd
+
+# Configure logging for server lifecycle events
+# Get log file path from environment variable or default to server code directory
+script_dir = os.path.dirname(os.path.abspath(__file__))
+default_log_path = os.path.join(script_dir, 'server.log')
+log_file = os.getenv('PMSHELL_SERVER_LOG_PATH', default_log_path)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='[%(asctime)s] [PID:%(process)d] %(levelname)s: %(message)s',
+    handlers=[
+        logging.FileHandler(log_file)  # Only log to file, not to console
+    ]
+)
+logger = logging.getLogger(__name__)
 
 
 # Pydantic models for request/response
@@ -42,7 +58,7 @@ async def lifespan( app: FastAPI ):
     global shell_instance, model, image
 
     # Startup
-    print( "PyTorch Model Shell API server starting..." )
+    logger.info( "PyTorch Model Shell API server starting..." )
 
     # Import pmshell module by loading it dynamically
     import importlib.util
@@ -68,12 +84,12 @@ async def lifespan( app: FastAPI ):
     config = Config()
     shell_instance = Shell( config, server_mode=True )
 
-    print( "PyTorch Model Shell API server started" )
+    logger.info( "PyTorch Model Shell API server started" )
 
     yield  # Server runs here
 
     # Shutdown
-    print( "PyTorch Model Shell API server shutting down" )
+    logger.info( "PyTorch Model Shell API server shutting down" )
 
 
 # FastAPI app with lifespan
@@ -170,6 +186,9 @@ async def execute_command( request: CommandRequest ):
     if shell_instance is None:
         raise HTTPException( status_code=500, detail="Shell not initialized" )
 
+    # Log the command being executed
+    logger.info( f"Requested: {request.command}" )
+
     exception = None
     try:
         shell_instance.onecmd( shell_instance.precmd( request.command ) )
@@ -211,11 +230,29 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    print( f"Starting PyTorch Model Shell API server on {args.host}:{args.port}" )
+    logger.info( f"Starting PyTorch Model Shell API server on {args.host}:{args.port}" )
+
+    # Configure uvicorn to log to file only (not console)
+    log_config = uvicorn.config.LOGGING_CONFIG
+    log_config["formatters"]["default"]["fmt"] = "[%(asctime)s] [PID:%(process)d] %(levelprefix)s %(message)s"
+    log_config["formatters"]["access"]["fmt"] = '[%(asctime)s] [PID:%(process)d] %(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s'
+
+    # Replace console handlers with file handlers for all loggers
+    log_config["handlers"]["default"] = {
+        "class": "logging.FileHandler",
+        "filename": log_file,
+        "formatter": "default"
+    }
+    log_config["handlers"]["access"] = {
+        "class": "logging.FileHandler",
+        "filename": log_file,
+        "formatter": "access"
+    }
 
     uvicorn.run(
         "pm_api_server:app",
         host=args.host,
         port=args.port,
-        reload=args.reload
+        reload=args.reload,
+        log_config=log_config
     )

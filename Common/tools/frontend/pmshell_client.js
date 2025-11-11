@@ -75,7 +75,7 @@ class PMShellAPIFrontend {
     }
   }
 
-  async logServerOutput(data) {
+  async logClientError(data) {
     // Prevent recursive logging
     if (this.isLogging) {
       return;
@@ -91,8 +91,8 @@ class PMShellAPIFrontend {
       for (const line of lines) {
         const trimmedLine = line.trim();
         if (trimmedLine) {
-          const logEntry = `[${timestamp}] [PID:${pid || 'unknown'}] ${trimmedLine}\n`;
-          fs.appendFileSync('server.log', logEntry);
+          const logEntry = `[${timestamp}] [Server PID:${pid || 'unknown'}] ${trimmedLine}\n`;
+          fs.appendFileSync('client.log', logEntry);
         }
       }
     } finally {
@@ -112,16 +112,22 @@ class PMShellAPIFrontend {
       ], {
         env: process.env,
         detached: true,  // Run independently
-        stdio: ['ignore', 'pipe', 'pipe']  // Pipe stdout and stderr for logging
+        stdio: ['ignore', 'pipe', 'pipe']  // Pipe stdout and stderr for monitoring
       });
 
-      // Log server output to file with timestamp and PID
+      // Server lifecycle logs are written to server.log by the server itself
+      // We only log stderr (errors/crashes) on the client side
       this.apiServer.stdout.on('data', (data) => {
-        this.logServerOutput(data.toString());
+        // Display server startup messages on terminal for user feedback
+        const output = data.toString().trim();
+        if (output) {
+          console.log(chalk.gray(output));
+        }
       });
 
       this.apiServer.stderr.on('data', (data) => {
-        this.logServerOutput(data.toString());
+        // Log errors to client.log for debugging
+        this.logClientError(data.toString());
       });
 
       // Detach the process so it can run independently
