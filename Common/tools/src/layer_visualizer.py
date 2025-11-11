@@ -54,7 +54,6 @@ class LayerVisualizer( ShellBase ):
         self.grid_size = self.compute_grid_size( self._weights.size( 0 ) )
         self.message( "{} {}".format( self.model_info.cur_layer.id, self.model_info.cur_layer.layer ) )
 
-
     def keypress( self, event ):
         _row = row = self.row
         _col = col = self.col

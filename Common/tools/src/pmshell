@@ -11,7 +11,6 @@ from pm_base import ShellBase
 from pm_commands import Commands
 from llm_service import LLMService
 
-
 model = None
 image = None
 
@@ -24,7 +23,7 @@ def prepare_shell( server_mode=False ):
     """Any preparation or configuration before launching the Shell process
     should go here
     """
-    
+
     #Configure matplotlib backend before any imports that use pyplot.
     import matplotlib
     if server_mode:

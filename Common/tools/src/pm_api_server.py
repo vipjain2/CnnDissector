@@ -11,14 +11,10 @@ import sys
 from typing import Optional, Dict, Any, List
 from io import StringIO
 from contextlib import redirect_stdout, redirect_stderr, asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
-
-
-# Import pmshell - need to handle imports carefully
 import cmd
 
 
@@ -26,11 +22,11 @@ import cmd
 class CommandRequest( BaseModel ):
     command: str
 
-
 class CommandResponse( BaseModel ):
     output: str
     success: bool
     error: Optional[str] = None
+    image_data: Optional[str] = None  # Base64 encoded PNG image data
 
 
 # Global shell instance - maintains all state
@@ -183,16 +179,24 @@ async def execute_command( request: CommandRequest ):
     # Get captured output from server mode buffer
     full_output = shell_instance.get_output()
 
+    # Check if there's an image to return
+    image_data = shell_instance.fig.get_image_data()
+    if image_data:
+        # Clear the buffer after retrieving
+        shell_instance.fig.clear_image_buffer()
+
     if exception:
         return CommandResponse(
             output=full_output,
             success=False,
-            error=str( exception )
+            error=str( exception ),
+            image_data=image_data
         )
 
     return CommandResponse(
         output=full_output.strip(),
-        success=True
+        success=True,
+        image_data=image_data
     )
 
 

@@ -467,7 +467,7 @@ class Commands:
 
         model = model_info.model
         n =  sum( reduce( lambda x, y: x * y, p.size() ) for p in model.parameters())
-        print( "{:,}".format( n ) )
+        self.message( f"{n:,}" )
 
     do_nparam = do_nparams
     do_show_nparams = do_nparams
@@ -488,8 +488,8 @@ class Commands:
         if model_info is None:
             return
 
-        img = self.load_from_global( "image" )
-        if img is None:
+        image = self.load_from_global( "image" )
+        if image is None:
             self.error( "Please load an input image first" )
             return
 
@@ -505,6 +505,8 @@ class Commands:
 
 
     def do_visualizer( self, args ):
+        if self.server_mode:
+            self.error( "Visualizer is not supported in server mode" )
         if self.cur_model is None:
             self.error( "No current model set in context" )
             return

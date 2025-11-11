@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const { createInterface } = require('readline');
 const chalk = require('chalk');
 const boxen = require('boxen');
@@ -17,6 +17,7 @@ class PMShellAPIFrontend {
     this.apiPort = 8000;
     this.apiBaseUrl = `http://${this.apiHost}:${this.apiPort}`;
     this.isLogging = false;  // Flag to prevent recursive logging
+    this.imageViewerUrl = 'http://127.0.0.1:3001';
 
     // Configure marked for terminal rendering
     marked.setOptions({
@@ -227,8 +228,14 @@ class PMShellAPIFrontend {
         if (response.output) {
           this.handleOutput(response.output);
         }
+        if (response.image_data) {
+          await this.displayImage(response.image_data);
+        }
       } else {
         console.log(chalk.red('Error: ' + (response.error || 'Command failed')));
+        if (response.image_data) {
+          await this.displayImage(response.image_data);
+        }
       }
     } catch (err) {
       console.log(chalk.red('✗ Request failed: ' + err.message));
@@ -253,6 +260,21 @@ class PMShellAPIFrontend {
     return markdownPatterns.some(pattern => pattern.test(text));
   }
 
+  async displayImage(imageData) {
+    try {
+      // Send image data to Next.js image viewer
+      await this.makeRequest(`${this.imageViewerUrl}/api/image`, {
+        method: 'POST',
+        body: JSON.stringify({ imageData: imageData })
+      });
+
+      console.log(chalk.cyan('📊 Image sent to viewer at ' + this.imageViewerUrl));
+    } catch (err) {
+      console.log(chalk.yellow(`⚠ Could not display image: ${err.message}`));
+      console.log(chalk.gray('   Make sure the image viewer is running: cd image-viewer && npm run dev'));
+    }
+  }
+
   handleOutput(output) {
     // Check if the entire output looks like markdown
     if (this.isMarkdown(output)) {
@@ -274,25 +296,6 @@ class PMShellAPIFrontend {
         if (line.startsWith('***')) {
           // Error messages
           console.log(chalk.red(line));
-        } else if (line.startsWith('Model:')) {
-          // Model info
-          console.log(chalk.cyan.bold(line));
-        } else if (line.includes('=')) {
-          // Config/parameter lines
-          const parts = line.split('=');
-          if (parts.length >= 2) {
-            const key = parts[0].trim();
-            const value = parts.slice(1).join('=').trim();
-            console.log(chalk.gray(key) + chalk.white(' = ') + chalk.yellow(value));
-          } else {
-            console.log(line);
-          }
-        } else if (line.startsWith('LLM provider:')) {
-          // LLM section header
-          console.log(chalk.magenta.bold(line));
-        } else if (line.trim().startsWith('Name:') || line.trim().startsWith('Model:')) {
-          // LLM details
-          console.log(chalk.gray(line));
         } else if (line.match(/^-{3,}/)) {
           // Separator lines
           console.log(chalk.dim(line));
@@ -306,7 +309,7 @@ class PMShellAPIFrontend {
 
   makeRequest(endpoint, options = {}) {
     return new Promise((resolve, reject) => {
-      const url = this.apiBaseUrl + endpoint;
+      const url = endpoint.startsWith('http') ? endpoint : this.apiBaseUrl + endpoint;
       const parsedUrl = new URL(url);
 
       const reqOptions = {
