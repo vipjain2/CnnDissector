@@ -9,7 +9,7 @@ import torch.nn as nn
 import torchvision
 from torchvision import transforms, datasets
 from PIL import Image
-from pm_helper_classes import GraphWindow, ModelMeta
+from pm_helper_classes import WindowManager, ModelMeta
 
 
 class ShellBase:
@@ -27,7 +27,8 @@ class ShellBase:
         self.verbose_help = True
         self.stack = []
         self.cur_frame = sys._getframe().f_back
-        self.fig = GraphWindow()
+
+        self.fig = WindowManager( server_mode=server_mode )
 
     def set_model( self, name, model ):
         # If model is already in context, we only need to switch the pointer
@@ -48,7 +49,7 @@ class ShellBase:
             set_as_cur_model = True
 
         del self.models[ name ]
-        
+
         new_model = self.load_from_global( name )
         if new_model is not None and isinstance( new_model, nn.Module ):
             new_model_info = ModelMeta( new_model, name )
@@ -139,7 +140,7 @@ class ShellBase:
         for i, v in zip( id, val ):
             ax.text( i, v, "{}".format( i ) )
         ax.grid()
-        self.fig.show_graph( ax )
+        self.fig.display_window( ax )
 
     def compute_grid_size( self, nf ):
         s = int( np.floor( np.sqrt( nf ) ) )
@@ -170,7 +171,8 @@ class ShellBase:
             window.set_cursor( rect )
         window.add_title( title )
         window.add_image( grid )
-        window.show()
+        window.render()
+        self.fig.display_window()
 
     def error( self, err_msg ):
         # Use api_output if set (API mode), otherwise use stdout (interactive mode)

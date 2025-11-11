@@ -119,9 +119,8 @@ class Commands:
             self.error( "Image not found")
             return
         self.message( "Loading image {}".format( image_path ) )
-        image = Image.open( image_path )
+        image = Image.open( image_path ).convert( 'RGB' )  # Ensure 3 channels
         transform = transforms.Compose( [ transforms.Resize( ( self.image_size, self.image_size ) ),
-                                         
                                           transforms.ToTensor() ] )
         image = transform( image ).float().unsqueeze( 0 )
         # Store image in current frame's namespace
@@ -284,8 +283,8 @@ class Commands:
             self.message( "Please set a model in context first" )
             return
 
-        img = self.load_from_global( "image" )
-        if img is None:
+        image = self.load_from_global( "image" )
+        if image is None:
             self.error( "No input image available" )
             return
 
@@ -307,7 +306,7 @@ class Commands:
         cam = ( cam - np.min( cam ) ) / np.max( cam )
         cam = Image.fromarray( cam )
 
-        _, _, h, w = img.size()     
+        _, _, h, w = image.size()     
         cam = cam.resize( ( h, w ), Image.BICUBIC )
         cam = transforms.ToTensor()( cam )[ 0 ]
         
@@ -315,9 +314,10 @@ class Commands:
         self.message( msg )
         window = self.fig.get_or_create_window()
         window.add_title( msg )
-        window.add_image( img )
+        window.add_image( image )
         window.add_image( cam, cmap="jet", alpha=0.5 )
-        window.show()
+        window.render()
+        self.fig.display_window()
 
     do_show_heat = do_show_heatmap
 

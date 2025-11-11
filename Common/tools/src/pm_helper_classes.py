@@ -1,6 +1,7 @@
 import os, sys
 from pathlib import Path
 from collections import OrderedDict
+from io import BytesIO
 
 import logging
 logging.getLogger( "matplotlib" ).setLevel( logging.ERROR )
@@ -22,13 +23,15 @@ from PIL import Image
 matplotlib.rcParams[ "toolbar" ] = "None"
 
 class Window:
-    def __init__( self, ax ):
+    def __init__( self, ax, server_mode=False ):
         self.ax = ax
+        self.server_mode = server_mode
         self.cursor = None
         self.background = None
         self.artists = []
         self.ax.figure.canvas.draw()
-        self.ax.figure.show()
+        if not server_mode:
+            self.ax.figure.show()
 
     def set_cursor( self, rect ):
         if rect is not None:
@@ -60,21 +63,22 @@ class Window:
             kwargs[ "cmap" ] = "gray"
         self.artists.append( self.ax.imshow( image, **kwargs ) )
 
-    def show( self ):
+    def render( self ):
         for a in self.artists:
             self.ax.draw_artist( a )
         if self.cursor:
             self.ax.draw_artist( self.cursor )
         self.ax.figure.canvas.blit( self.ax.bbox )
-        self.ax.figure.show()
         self.artists = []
 
     def clear( self ):
         self.ax.clear()
         self.artists = []
 
-class GraphWindow:
-    def __init__( self ):
+class WindowManager:
+    def __init__( self, server_mode=False ):
+        self.server_mode = server_mode
+        self.image_buffer = None  # BytesIO buffer to store image in server mode
         self.fig = plt.figure()
         self.window_title = "PM Debug"
         self.cur_ax = None
@@ -84,7 +88,8 @@ class GraphWindow:
         self.mode = None
         self.set_window_title()
         self.set_mode( "single" )
-        self.fig.canvas.mpl_connect( "close_event", self.on_window_close )
+        if not server_mode:
+            self.fig.canvas.mpl_connect( "close_event", self.on_window_close )
 
     def set_window_title( self, title=None ):
         if title is None:
@@ -123,7 +128,7 @@ class GraphWindow:
     def init_windows( self ):
         self.fig.subplots( 1, self.num_windows )
         for i in range( self.num_windows ):
-            window = Window( self.fig.axes[ i ] )
+            window = Window( self.fig.axes[ i ], self.server_mode )
             self.windows.append( window )
         self.cur_window = 0
 
@@ -164,14 +169,34 @@ class GraphWindow:
         if title is not None:
             window.add_title( title )
         window.add_image( image, **kwargs )
-        window.show()
+        window.render()
+        self.display_window()
         return True
 
-    def show_graph( self, ax=None, aspect="auto" ):
-        ax = self.cur_ax if ax is None else ax
-        ax.set_aspect( aspect )
-        ax.figure.canvas.draw()
-        self.fig.show()
+    def display_window( self, ax=None, aspect="auto" ):
+        if ax is not None:
+            ax.set_aspect( aspect )
+            ax.figure.canvas.draw()
+
+        # Display or save to buffer based on mode
+        if self.server_mode:
+            self.image_buffer = BytesIO()
+            self.fig.savefig( self.image_buffer, format='png', bbox_inches='tight' )
+            self.image_buffer.seek( 0 )
+        else:
+            self.fig.show()
+
+    def get_image_data( self ):
+        """Get the image data from buffer as base64 string for sending to client."""
+        if self.image_buffer is None:
+            return None
+        import base64
+        self.image_buffer.seek( 0 )
+        return base64.b64encode( self.image_buffer.getvalue() ).decode( 'utf-8' )
+
+    def clear_image_buffer( self ):
+        """Clear the image buffer."""
+        self.image_buffer = None
 
     def close( self ):
         plt.close()

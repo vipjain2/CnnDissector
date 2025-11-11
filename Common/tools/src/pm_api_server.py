@@ -61,9 +61,13 @@ async def lifespan( app: FastAPI ):
     sys.modules["pmshell_module"] = pmshell_module
     loader.exec_module( pmshell_module )
 
-    # Get Shell and Config classes
+    # Get Shell, Config, and prepare_shell function
     Shell = pmshell_module.Shell
     Config = pmshell_module.Config
+    prepare_shell = pmshell_module.prepare_shell
+
+    # Configure matplotlib backend before creating shell
+    prepare_shell( server_mode=True )
 
     config = Config()
     shell_instance = Shell( config, server_mode=True )

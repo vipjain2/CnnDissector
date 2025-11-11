@@ -15,8 +15,23 @@ from llm_service import LLMService
 model = None
 image = None
 
+
 class Config:
-    pass 
+    pass
+
+
+def prepare_shell( server_mode=False ):
+    """Any preparation or configuration before launching the Shell process
+    should go here
+    """
+    
+    #Configure matplotlib backend before any imports that use pyplot.
+    import matplotlib
+    if server_mode:
+        matplotlib.use( 'Agg' )  # Non-interactive backend for server mode
+    else:
+        matplotlib.use( 'TkAgg' )  # Interactive backend for interactive mode
+
 
 class Shell( ShellBase, Commands, cmd.Cmd ):
     def __init__( self, config, server_mode=False ):
@@ -248,6 +263,9 @@ if __name__ == "__main__":
     parser.add_argument( '--safe-mode', action='store_true',
                         help='Enable safe mode (sets environment variables for CPU threading)' )
     args = parser.parse_args()
+
+    # Configure matplotlib backend before creating shell
+    prepare_shell( server_mode=False )
 
     config = Config()
     shell = Shell( config )
