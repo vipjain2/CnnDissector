@@ -275,7 +275,7 @@ class PMShellAPIFrontend {
     this.isUpdatingStatusBar = true;
 
     const termWidth = process.stdout.columns || 80;
-    const rightText = 'NetDissect  ';
+    const rightText = 'NetDissect ';
     const padding = ' '.repeat(Math.max(0, termWidth - rightText.length));
     const statusContent = padding + rightText;
 
