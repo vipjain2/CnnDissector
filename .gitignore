@@ -10,4 +10,6 @@ llm_service_config.yaml
 server.log
 client.log
 Common/tools/frontend/image-viewer
+Common/tools/frontend/dist/
 node_modules/
+.clauderc

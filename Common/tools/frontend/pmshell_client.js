@@ -18,6 +18,9 @@ class PMShellAPIFrontend {
     this.apiBaseUrl = `http://${this.apiHost}:${this.apiPort}`;
     this.isLogging = false;  // Flag to prevent recursive logging
     this.imageViewerUrl = 'http://127.0.0.1:3001';
+    this.statusBarEnabled = false;
+    this.originalConsoleLog = console.log.bind(console);
+    this.isUpdatingStatusBar = false;  // Flag to prevent recursive status bar updates
 
     // Configure marked for terminal rendering
     marked.setOptions({
@@ -52,6 +55,9 @@ class PMShellAPIFrontend {
 
       console.log(chalk.green('✓ Backend server ready\n'));
     }
+
+    // Setup status bar and console wrapper
+    this.setupStatusBar();
 
     // Setup readline interface
     this.setupReadline();
@@ -173,6 +179,17 @@ class PMShellAPIFrontend {
       prompt: chalk.green('pmshell> ')
     });
 
+    // Wrap readline's output write to redraw status bar after any terminal write
+    const originalWrite = process.stdout.write.bind(process.stdout);
+    process.stdout.write = (...args) => {
+      const result = originalWrite(...args);
+      // Only update status bar if we're not already updating it (prevent recursion)
+      if (!this.isUpdatingStatusBar) {
+        this.updateStatusBar();
+      }
+      return result;
+    };
+
     this.rl.prompt();
 
     this.rl.on('line', async (line) => {
@@ -221,6 +238,59 @@ class PMShellAPIFrontend {
     this.rl.on('close', async () => {
       await this.shutdown();
     });
+  }
+
+  setupStatusBar() {
+    this.statusBarEnabled = true;
+
+    // Set scrolling region to exclude the last line
+    // This tells the terminal to only scroll lines 1 to (rows-1)
+    const scrollRegion = process.stdout.rows - 1;
+    process.stdout.write(`\x1b[1;${scrollRegion}r`);
+
+    // Move cursor to just above status bar (line rows-1)
+    process.stdout.write(`\x1b[${scrollRegion};1H`);
+
+    // Wrap console.log to redraw status after every output
+    console.log = (...args) => {
+      this.originalConsoleLog(...args);
+      this.updateStatusBar();
+    };
+
+    // Handle terminal resize
+    process.stdout.on('resize', () => {
+      // Reset scroll region on resize
+      const newScrollRegion = process.stdout.rows - 1;
+      process.stdout.write(`\x1b[1;${newScrollRegion}r`);
+      this.updateStatusBar();
+    });
+
+    // Initial render
+    this.updateStatusBar();
+  }
+
+  updateStatusBar() {
+    if (!this.statusBarEnabled) return;
+
+    this.isUpdatingStatusBar = true;
+
+    const termWidth = process.stdout.columns || 80;
+    const rightText = 'NetDissect  ';
+    const padding = ' '.repeat(Math.max(0, termWidth - rightText.length));
+    const statusContent = padding + rightText;
+
+    // Save cursor, move to last line (absolute), draw status, restore cursor
+    process.stdout.write(
+      '\x1b[s' +                                    // Save cursor position
+      `\x1b[${process.stdout.rows};1H` +           // Move to last line (absolute)
+      '\x1b[K' +                                    // Clear line
+      '\x1b[44m\x1b[37m' +                          // Blue background, white text
+      statusContent +
+      '\x1b[0m' +                                   // Reset colors
+      '\x1b[u'                                      // Restore cursor position
+    );
+
+    this.isUpdatingStatusBar = false;
   }
 
   async sendCommand(command) {
@@ -437,7 +507,23 @@ class PMShellAPIFrontend {
   }
 
   async shutdown() {
-    console.log(chalk.cyan('\nShutting down client...'));
+    // Restore console.log
+    if (this.originalConsoleLog) {
+      console.log = this.originalConsoleLog;
+    }
+
+    // Reset scroll region to full screen and clear status bar
+    if (this.statusBarEnabled) {
+      process.stdout.write('\x1b[r');                 // Reset scroll region
+      const termWidth = process.stdout.columns || 80;
+      process.stdout.write(
+        `\x1b[${process.stdout.rows};1H` +           // Move to last line
+        '\x1b[K' +                                    // Clear line
+        '\n'                                          // Newline
+      );
+    }
+
+    console.log(chalk.cyan('Shutting down client...'));
 
     if (this.rl) {
       this.rl.close();
