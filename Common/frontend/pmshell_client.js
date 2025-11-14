@@ -107,7 +107,7 @@ class PMShellAPIFrontend {
   }
 
   startAPIServer() {
-    const serverPath = '../src/pm_api_server.py';
+    const serverPath = '../pmshell/pm_api_server.py';
 
     return new Promise((resolve, reject) => {
       // Run the API server as detached process

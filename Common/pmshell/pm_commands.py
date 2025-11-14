@@ -507,6 +507,7 @@ class Commands:
     def do_visualizer( self, args ):
         if self.server_mode:
             self.error( "Visualizer is not supported in server mode" )
+            return
         if self.cur_model is None:
             self.error( "No current model set in context" )
             return
