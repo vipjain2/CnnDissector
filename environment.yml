@@ -15,5 +15,8 @@ dependencies:
   - pillow
   - pip=25.0
   - pip:
-    - setuptools==80.9.0
-    - cmake==4.0.3
+    - cmake
+    - fastapi
+    - groq
+    - uvicorn
+    - python-dotenv
